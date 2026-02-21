@@ -1,23 +1,18 @@
-import logo from './logo.svg';
+import React from 'react';
+import SideBar from './pages/sideBar';
+import EditProfile from './pages/editProfile';
 import './App.css';
 
 function App() {
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
+    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#d1d5db' }}>
+      {/* 1. The Sidebar you just created */}
+      <SideBar />
+
+      {/* 2. The Main Content Area */}
+      <main style={{ flex: 1, padding: '40px', display: 'flex', justifyContent: 'center' }}>
+        <EditProfile />
+      </main>
     </div>
   );
 }
