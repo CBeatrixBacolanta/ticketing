@@ -17,28 +17,52 @@ import '../styles/Remarks.css';
 const Remarks = () => {
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
-    const [isSaved, setIsSaved] = useState(false);
+
+    // Uniform notification state for Green and Red toasts
+    const [notification, setNotification] = useState({
+        show: false,
+        message: '',
+        type: ''
+    });
 
     const handleSave = () => {
+        // Check if title is empty or just spaces
         if (!title.trim()) {
-            alert("Please provide a title for these remarks.");
+            setNotification({
+                show: true,
+                message: "Action Denied: Please provide a title for these remarks.",
+                type: "error"
+            });
             return;
         }
-        setIsSaved(true);
+
+        // Success logic
+        setNotification({
+            show: true,
+            message: "Remark saved successfully!",
+            type: "success"
+        });
     };
 
+    // Logic to hide the notification after 3 seconds
     useEffect(() => {
-        if (isSaved) {
-            const timer = setTimeout(() => setIsSaved(false), 3000);
+        if (notification.show) {
+            const timer = setTimeout(() => {
+                setNotification({ ...notification, show: false });
+            }, 3000);
             return () => clearTimeout(timer);
         }
-    }, [isSaved]);
+    }, [notification]);
 
     return (
         <div className="remarks-container">
-            {isSaved && (
-                <div className="save-notification">
-                    <span className="check-icon">✓</span> Remark saved successfully!
+            {/* Uniform Slide-in Notification */}
+            {notification.show && (
+                <div className={`notification-toast ${notification.type}`}>
+                    <span className="icon">
+                        {notification.type === 'success' ? '✓' : '✕'}
+                    </span>
+                    {notification.message}
                 </div>
             )}
 
