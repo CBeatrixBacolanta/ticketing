@@ -23,7 +23,8 @@ const EditProfile = ({ user, onSave }) => {
   };
 
   const handleSaveClick = () => {
-    //STRONGER VALIDATION
+    // 1. STRONGER VALIDATION
+    // .trim() removes spaces. This checks if the user just typed spaces.
     const isFirstNameEmpty = !formData.firstName || formData.firstName.trim() === "";
     const isLastNameEmpty = !formData.lastName || formData.lastName.trim() === "";
     const isEmailEmpty = !formData.email || formData.email.trim() === "";
@@ -39,7 +40,8 @@ const EditProfile = ({ user, onSave }) => {
       return;
     }
 
-    //"SWAP" AND SAVE LOGIC
+    // 3. THE "SWAP" AND SAVE LOGIC
+    // If we reach this point, it means validation passed!
     let updatedData = { ...formData };
 
     if (formData.newPassword) {
@@ -52,7 +54,6 @@ const EditProfile = ({ user, onSave }) => {
     onSave(updatedData);
     alert("Profile updated successfully! Changes reflected in Sidebar.");
   };
-
   return (
     <div className="profile-wrapper">
       <div className="profile-header">
@@ -96,7 +97,7 @@ const EditProfile = ({ user, onSave }) => {
               <label htmlFor="firstName">First Name</label>
               <input type="text" id="firstName" name="firstName" value={formData.firstName} onChange={handleChange} />
             </div>
-            {/* Middle Initial Input */}
+            {/* NEW: Middle Initial Input */}
             <div className="form-group" style={{ flex: '0 0 80px' }}>
               <label htmlFor="middleInitial">M.I.</label>
               <input
