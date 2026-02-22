@@ -1,17 +1,28 @@
-import React from 'react';
+import React, { useState } from 'react';
 import SideBar from './pages/sideBar';
 import EditProfile from './pages/editProfile';
 import './App.css';
 
 function App() {
-  return (
-    <div style={{ display: 'flex', minHeight: '100vh', backgroundColor: '#d1d5db' }}>
-      {/* 1. The Sidebar you just created */}
-      <SideBar />
+  // Just a "Mock Database"
+  const [user, setUser] = useState({
+    firstName: "Roy",
+    lastName: "Casiño",
+    email: "roycasino@gmail.com",
+    position: "SR. LEO",
+    profilePic: null // You can put a default image path here
+  });
 
-      {/* 2. The Main Content Area */}
-      <main style={{ flex: 1, padding: '40px', display: 'flex', justifyContent: 'center' }}>
-        <EditProfile />
+  // Function to save changes from EditProfile back to the app
+  const handleUserUpdate = (updatedData) => {
+    setUser((prev) => ({ ...prev, ...updatedData }));
+  };
+
+  return (
+    <div className="app-layout">
+      <SideBar user={user} />
+      <main className="main-content">
+        <EditProfile user={user} onSave={handleUserUpdate} />
       </main>
     </div>
   );
