@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import SideBar from './pages/SideBar';
-import EditProfile from './pages/EditProfile';
+import SideBar from './pages/sideBar';
+import EditProfile from './pages/editProfile';
 import './App.css';
 
 function App() {
