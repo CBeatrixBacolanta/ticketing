@@ -1,5 +1,5 @@
 import React from 'react';
-import '../styles/sideBar.css';
+import '../styles/SideBar.css';
 import Logo from '../assets/images/logo.png';
 import DefaultProfile from '../assets/images/casino.jpg';
 
@@ -19,13 +19,16 @@ const SideBar = ({ user }) => {
 
         <div className="profile-section">
           <div className="profile-image-container">
-            <img 
-              src={user.profilePic || DefaultProfile} 
-              alt="User Profile" 
-              className="profile-pic" 
+            <img
+              src={user.profilePic || DefaultProfile}
+              alt="User Profile"
+              className="profile-pic"
             />
           </div>
-          <h2 className="profile-name">{user.lastName.toUpperCase()}, {user.firstName} S.</h2>
+          {/* UPDATED: Dynamic Last Name, First Name, and Middle Initial */}
+          <h2 className="profile-name">
+            {user.lastName.toUpperCase()}, {user.firstName} {user.middleInitial ? `${user.middleInitial}.` : ''}
+          </h2>
           <p className="profile-email">{user.email}</p>
           <button className="edit-profile-btn">Edit Profile</button>
         </div>

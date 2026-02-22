@@ -1,11 +1,11 @@
 import React, { useState, useRef } from 'react';
-import '../styles/editProfile.css';
+import '../styles/EditProfile.css';
 import { FaEye, FaEyeSlash, FaCloudUploadAlt } from 'react-icons/fa';
 
 const EditProfile = ({ user, onSave }) => {
   const [formData, setFormData] = useState({
     ...user,
-    currentPassword: 'password123', // Default for demo
+    currentPassword: 'password123',
     newPassword: '',
     retypePassword: ''
   });
@@ -17,30 +17,31 @@ const EditProfile = ({ user, onSave }) => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setFormData({ ...formData, [name]: value });
-  };
-
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      const tempUrl = URL.createObjectURL(file);
-      setFormData({ ...formData, profilePic: tempUrl });
-    }
+    // Limit Middle Initial to 1 character
+    const val = name === "middleInitial" ? value.charAt(0).toUpperCase() : value;
+    setFormData({ ...formData, [name]: val });
   };
 
   const handleSaveClick = () => {
-    if (!formData.firstName.trim() || !formData.lastName.trim() || !formData.email.trim()) {
-      alert("Please fill in required fields.");
-      return;
+    //STRONGER VALIDATION
+    const isFirstNameEmpty = !formData.firstName || formData.firstName.trim() === "";
+    const isLastNameEmpty = !formData.lastName || formData.lastName.trim() === "";
+    const isEmailEmpty = !formData.email || formData.email.trim() === "";
+
+    if (isFirstNameEmpty || isLastNameEmpty || isEmailEmpty) {
+      alert("Action Denied: Please fill out all required fields.");
+      return; // This is the "Stop" sign. The code below will NOT run.
     }
 
+    // 2. PASSWORD MATCH CHECK
     if (formData.newPassword !== formData.retypePassword) {
-      alert("New passwords do not match!");
+      alert("The new passwords do not match. Please try again.");
       return;
     }
 
-    // Apply the swap logic
+    //"SWAP" AND SAVE LOGIC
     let updatedData = { ...formData };
+
     if (formData.newPassword) {
       updatedData.currentPassword = formData.newPassword;
       updatedData.newPassword = '';
@@ -49,7 +50,7 @@ const EditProfile = ({ user, onSave }) => {
     }
 
     onSave(updatedData);
-    alert("Password updated! Your new password is now the 'Current Password'.");
+    alert("Profile updated successfully! Changes reflected in Sidebar.");
   };
 
   return (
@@ -69,7 +70,10 @@ const EditProfile = ({ user, onSave }) => {
           <div className="avatar-large">
             <img src={formData.profilePic || "https://placehold.co/110"} alt="Profile" />
           </div>
-          <input type="file" ref={fileInputRef} onChange={handleFileChange} style={{ display: 'none' }} accept="image/*" />
+          <input type="file" ref={fileInputRef} onChange={(e) => {
+            const file = e.target.files[0];
+            if (file) setFormData({ ...formData, profilePic: URL.createObjectURL(file) });
+          }} style={{ display: 'none' }} accept="image/*" />
           <div className="upload-box" onClick={() => fileInputRef.current.click()} style={{ cursor: 'pointer' }}>
             <FaCloudUploadAlt className="upload-icon-svg" />
             <p><strong>Click to upload</strong> or drag and drop</p>
@@ -91,6 +95,19 @@ const EditProfile = ({ user, onSave }) => {
             <div className="form-group">
               <label htmlFor="firstName">First Name</label>
               <input type="text" id="firstName" name="firstName" value={formData.firstName} onChange={handleChange} />
+            </div>
+            {/* Middle Initial Input */}
+            <div className="form-group" style={{ flex: '0 0 80px' }}>
+              <label htmlFor="middleInitial">M.I.</label>
+              <input
+                type="text"
+                id="middleInitial"
+                name="middleInitial"
+                value={formData.middleInitial}
+                onChange={handleChange}
+                maxLength="1"
+                style={{ textAlign: 'center' }}
+              />
             </div>
             <div className="form-group">
               <label htmlFor="lastName">Last Name</label>

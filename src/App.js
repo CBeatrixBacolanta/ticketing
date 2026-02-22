@@ -1,16 +1,17 @@
 import React, { useState } from 'react';
-import SideBar from './pages/sideBar';
-import EditProfile from './pages/editProfile';
+import SideBar from './pages/SideBar';
+import EditProfile from './pages/EditProfile';
 import './App.css';
 
 function App() {
   // Just a "Mock Database"
   const [user, setUser] = useState({
     firstName: "Roy",
+    middleInitial: "S", // Added this
     lastName: "Casiño",
     email: "roycasino@gmail.com",
     position: "SR. LEO",
-    profilePic: null // You can put a default image path here
+    profilePic: null
   });
 
   // Function to save changes from EditProfile back to the app
