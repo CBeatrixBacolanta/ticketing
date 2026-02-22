@@ -1,0 +1,119 @@
+.remarks-container {
+    padding: 40px;
+    background-color: #f0f2f5; 
+    min-height: 100vh;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.save-notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    background-color: #2e7d32; 
+    color: white;
+    padding: 15px 25px;
+    border-radius: 8px;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+.remarks-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+    max-width: 850px;
+    margin: 0 auto 25px auto;
+}
+
+.remarks-header h1 {
+    color: #002d5b;
+    font-size: 24px;
+    margin: 0;
+}
+
+.btn-primary {
+    background-color: #002d5b;
+    color: white;
+    padding: 10px 24px;
+    border: none;
+    border-radius: 4px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.btn-secondary {
+    background: white;
+    border: 1px solid #dadce0;
+    color: #3c4043;
+    padding: 10px 24px;
+    margin-right: 12px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.editor-paper {
+    background: white;
+    max-width: 850px; 
+    margin: 0 auto;
+    padding: 60px 80px; 
+    box-shadow: 0 1px 3px rgba(60,64,67,0.3), 0 4px 8px rgba(60,64,67,0.15);
+    min-height: 1000px;
+}
+
+.remark-title-input {
+    width: 100%;
+    border: none;
+    border-bottom: 1px solid #f1f3f4;
+    font-family: 'Times New Roman', Times, serif;
+    font-size: 28px;
+    margin-bottom: 20px;
+    padding: 10px 0;
+    color: #000;
+    outline: none;
+    font-weight: bold;
+}
+
+/* FORCING TIMES NEW ROMAN EVERYWHERE */
+.rsw-ce, .rsw-ce *, [contenteditable="true"] {
+    font-family: 'Times New Roman', Times, serif !important;
+    font-size: 12pt !important;
+    line-height: 1.6 !important;
+    color: #000 !important;
+}
+
+.rsw-toolbar {
+    border: none !important;
+    border-bottom: 1px solid #f1f3f4 !important;
+    padding: 10px 0 !important;
+    margin-bottom: 20px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    display: flex;
+    gap: 8px;
+    background: white;
+}
+
+.rsw-ce ul { list-style-type: disc !important; padding-left: 40px !important; }
+.rsw-ce ol { list-style-type: decimal !important; padding-left: 40px !important; }
+
+.rsw-toolbar button {
+    background: transparent !important;
+    border: 1px solid transparent !important;
+    cursor: pointer;
+}
+
+.rsw-toolbar button:hover {
+    background-color: #f1f3f4 !important;
+    border: 1px solid #dadce0 !important;
+}
