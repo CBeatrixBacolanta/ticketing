@@ -1,4 +1,5 @@
 import React from 'react';
+import { Link } from 'react-router-dom'; // Crucial for navigation without refreshing
 import '../styles/SideBar.css';
 import Logo from '../assets/images/logo.png';
 import DefaultProfile from '../assets/images/casino.jpg';
@@ -7,6 +8,7 @@ const SideBar = ({ user }) => {
   return (
     <div className="sidebar-container">
       <div className="sidebar-header">
+        {/* DOLE Branding Section */}
         <div className="dole-header-container">
           <img src={Logo} alt="DOLE Logo" className="dole-mini-logo" />
           <div className="dole-text-block">
@@ -17,29 +19,46 @@ const SideBar = ({ user }) => {
           </div>
         </div>
 
+        {/* Dynamic Profile Section */}
         <div className="profile-section">
           <div className="profile-image-container">
-            <img
-              src={user.profilePic || DefaultProfile}
-              alt="User Profile"
-              className="profile-pic"
+            <img 
+              src={user.profilePic || DefaultProfile} 
+              alt="User Profile" 
+              className="profile-pic" 
             />
           </div>
-          {/* UPDATED: Dynamic Last Name, First Name, and Middle Initial */}
           <h2 className="profile-name">
+            {/* Displays: LASTNAME, Firstname M. */}
             {user.lastName.toUpperCase()}, {user.firstName} {user.middleInitial ? `${user.middleInitial}.` : ''}
           </h2>
           <p className="profile-email">{user.email}</p>
-          <button className="edit-profile-btn">Edit Profile</button>
+          
+          {/* Link to the Edit Profile Page */}
+          <Link to="/edit-profile" className="edit-profile-btn-link">
+            <button className="edit-profile-btn">Edit Profile</button>
+          </Link>
         </div>
       </div>
 
+      {/* Navigation Menu */}
       <nav className="sidebar-nav">
         <ul>
-          <li><a href="/dashboard">Dashboard</a></li>
-          <li><a href="/schedule">Schedule</a></li>
-          <li><a href="/settings">Settings</a></li>
-          <li><a href="/logout">Logout</a></li>
+          <li>
+            <Link to="/remarks">Hearing Remarks</Link>
+          </li>
+          <li>
+            <Link to="/dashboard">Dashboard</Link>
+          </li>
+          <li>
+            <Link to="/schedule">Schedule</Link>
+          </li>
+          <li>
+            <Link to="/settings">Settings</Link>
+          </li>
+          <li className="logout-item">
+            <Link to="/logout">Logout</Link>
+          </li>
         </ul>
       </nav>
     </div>

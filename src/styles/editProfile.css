@@ -15,7 +15,7 @@
 .profile-header h1 {
     font-size: 32px;
     font-weight: 800;
-    color: #000000; /* Matches the white text on grey background in ref */
+    color: #000000;
     margin: 0;
 }
 
@@ -23,6 +23,38 @@
     color: #525252;
     opacity: 0.8;
     font-size: 14px;
+}
+
+/* --- Notification Toast (Remarks Style) --- */
+.notification-toast {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 15px 25px;
+    border-radius: 8px;
+    color: white;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    z-index: 9999; /* High z-index to stay on top */
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    animation: slideIn 0.3s ease-out;
+}
+
+/* Success Theme (Green) */
+.notification-toast.success {
+    background-color: #2e7d32;
+}
+
+/* Error Theme (Red) */
+.notification-toast.error {
+    background-color: #d32f2f;
+}
+
+@keyframes slideIn {
+    from { transform: translateX(100%); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
 }
 
 /* --- The White Outer Card --- */
@@ -57,7 +89,7 @@
 /* --- The Grey Inner Card --- */
 .inner-card {
     flex: 1;
-    background: #e5e7eb; /* Light grey fill from reference */
+    background: #e5e7eb; 
     border: 1px solid #d1d5db;
     border-radius: 24px;
     padding: 30px;
@@ -85,12 +117,11 @@
     margin-bottom: 6px;
 }
 
-.form-group input, 
-.custom-select {
+.form-group input {
     width: 100%;
     padding: 12px 15px;
     border-radius: 10px;
-    border: 1px solid #ffffff; /* White border on white input */
+    border: 1px solid #ffffff;
     background: #ffffff;
     font-family: 'Poppins', sans-serif;
     font-size: 14px;
@@ -106,7 +137,7 @@
 }
 
 .input-with-icon input {
-    padding-right: 45px; /* Space for the icon */
+    padding-right: 45px;
 }
 
 .icon-trigger {
@@ -151,7 +182,7 @@
 
 .upload-icon-svg {
     font-size: 32px;
-    color: #0ea5e9; /* Sky blue upload icon */
+    color: #0ea5e9;
 }
 
 /* --- Action Buttons --- */
@@ -162,18 +193,8 @@
     margin-top: 15px;
 }
 
-.btn-text.cancel {
-    color: #ef4444; /* Red Cancel */
-    font-weight: 700;
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-size: 15px;
-    padding: 5px 10px;
-}
-
 .btn-link.save {
-    color: #1e3a8a; /* Navy Blue Save */
+    color: #1e3a8a;
     font-weight: 700;
     background: none;
     border: none;
@@ -182,6 +203,6 @@
     padding: 5px 10px;
 }
 
-.btn-text:hover, .btn-link:hover {
+.btn-link.save:hover {
     opacity: 0.7;
 }

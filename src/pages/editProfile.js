@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react'; // Added useEffect
 import '../styles/EditProfile.css';
 import { FaEye, FaEyeSlash, FaCloudUploadAlt } from 'react-icons/fa';
 
@@ -10,38 +10,45 @@ const EditProfile = ({ user, onSave }) => {
     retypePassword: ''
   });
 
+  // --- NEW: Notification State ---
+  const [notification, setNotification] = useState({ show: false, message: '', type: '' });
+
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [showRetype, setShowRetype] = useState(false);
   const fileInputRef = useRef(null);
 
+  // --- NEW: Auto-hide notification timer ---
+  useEffect(() => {
+    if (notification.show) {
+      const timer = setTimeout(() => setNotification({ ...notification, show: false }), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [notification]);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
-    // Limit Middle Initial to 1 character
     const val = name === "middleInitial" ? value.charAt(0).toUpperCase() : value;
     setFormData({ ...formData, [name]: val });
   };
 
   const handleSaveClick = () => {
-    // 1. STRONGER VALIDATION
-    // .trim() removes spaces. This checks if the user just typed spaces.
     const isFirstNameEmpty = !formData.firstName || formData.firstName.trim() === "";
     const isLastNameEmpty = !formData.lastName || formData.lastName.trim() === "";
     const isEmailEmpty = !formData.email || formData.email.trim() === "";
 
     if (isFirstNameEmpty || isLastNameEmpty || isEmailEmpty) {
-      alert("Action Denied: Please fill out all required fields.");
-      return; // This is the "Stop" sign. The code below will NOT run.
-    }
-
-    // 2. PASSWORD MATCH CHECK
-    if (formData.newPassword !== formData.retypePassword) {
-      alert("The new passwords do not match. Please try again.");
+      // SWAPPED: alert with Red notification
+      setNotification({ show: true, message: "Action Denied: Please fill out all required fields.", type: "error" });
       return;
     }
 
-    // 3. THE "SWAP" AND SAVE LOGIC
-    // If we reach this point, it means validation passed!
+    if (formData.newPassword !== formData.retypePassword) {
+      // SWAPPED: alert with Red notification
+      setNotification({ show: true, message: "The new passwords do not match. Please try again.", type: "error" });
+      return;
+    }
+
     let updatedData = { ...formData };
 
     if (formData.newPassword) {
@@ -52,16 +59,26 @@ const EditProfile = ({ user, onSave }) => {
     }
 
     onSave(updatedData);
-    alert("Profile updated successfully! Changes reflected in Sidebar.");
+    // SWAPPED: alert with Green notification
+    setNotification({ show: true, message: "Profile updated successfully!", type: "success" });
   };
+
   return (
     <div className="profile-wrapper">
+      {/* --- NEW: The Notification Toast --- */}
+      {notification.show && (
+        <div className={`notification-toast ${notification.type}`}>
+          <span className="icon">{notification.type === 'success' ? '✓' : '✕'}</span>
+          {notification.message}
+        </div>
+      )}
+
       <div className="profile-header">
         <h1>Profile</h1>
         <p>Update your profile</p>
       </div>
 
-      {/* PHOTO SECTION */}
+      {/* PHOTO SECTION - (Rest of your code exactly as it was) */}
       <div className="outer-card">
         <div className="card-intro">
           <h2>Personal Information</h2>
@@ -85,7 +102,7 @@ const EditProfile = ({ user, onSave }) => {
         </div>
       </div>
 
-      {/* DETAILS SECTION */}
+      {/* DETAILS SECTION - (Rest of your code exactly as it was) */}
       <div className="outer-card">
         <div className="card-intro">
           <h2>Personal Information</h2>
@@ -97,18 +114,9 @@ const EditProfile = ({ user, onSave }) => {
               <label htmlFor="firstName">First Name</label>
               <input type="text" id="firstName" name="firstName" value={formData.firstName} onChange={handleChange} />
             </div>
-            {/* NEW: Middle Initial Input */}
             <div className="form-group" style={{ flex: '0 0 80px' }}>
               <label htmlFor="middleInitial">M.I.</label>
-              <input
-                type="text"
-                id="middleInitial"
-                name="middleInitial"
-                value={formData.middleInitial}
-                onChange={handleChange}
-                maxLength="1"
-                style={{ textAlign: 'center' }}
-              />
+              <input type="text" id="middleInitial" name="middleInitial" value={formData.middleInitial} onChange={handleChange} maxLength="1" style={{ textAlign: 'center' }} />
             </div>
             <div className="form-group">
               <label htmlFor="lastName">Last Name</label>
@@ -125,7 +133,7 @@ const EditProfile = ({ user, onSave }) => {
         </div>
       </div>
 
-      {/* PASSWORD SECTION */}
+      {/* PASSWORD SECTION - (Rest of your code exactly as it was) */}
       <div className="outer-card">
         <div className="card-intro">
           <h2>Password</h2>
@@ -135,53 +143,24 @@ const EditProfile = ({ user, onSave }) => {
           <div className="form-group">
             <label htmlFor="currentPass">Current Password</label>
             <div className="input-with-icon">
-              <input
-                type={showCurrent ? "text" : "password"}
-                id="currentPass"
-                name="currentPassword"
-                value={formData.currentPassword}
-                onChange={handleChange}
-              />
-              <span className="icon-trigger" onClick={() => setShowCurrent(!showCurrent)}>
-                {showCurrent ? <FaEyeSlash /> : <FaEye />}
-              </span>
+              <input type={showCurrent ? "text" : "password"} id="currentPass" name="currentPassword" value={formData.currentPassword} onChange={handleChange} />
+              <span className="icon-trigger" onClick={() => setShowCurrent(!showCurrent)}>{showCurrent ? <FaEyeSlash /> : <FaEye />}</span>
             </div>
           </div>
-
           <div className="form-group">
             <label htmlFor="newPass">New Password</label>
             <div className="input-with-icon">
-              <input
-                type={showNew ? "text" : "password"}
-                id="newPass"
-                name="newPassword"
-                value={formData.newPassword}
-                onChange={handleChange}
-                placeholder={showNew ? "Enter new password" : ""}
-              />
-              <span className="icon-trigger" onClick={() => setShowNew(!showNew)}>
-                {showNew ? <FaEyeSlash /> : <FaEye />}
-              </span>
+              <input type={showNew ? "text" : "password"} id="newPass" name="newPassword" value={formData.newPassword} onChange={handleChange} />
+              <span className="icon-trigger" onClick={() => setShowNew(!showNew)}>{showNew ? <FaEyeSlash /> : <FaEye />}</span>
             </div>
           </div>
-
           <div className="form-group">
             <label htmlFor="retypePass">Re-type New Password</label>
             <div className="input-with-icon">
-              <input
-                type={showRetype ? "text" : "password"}
-                id="retypePass"
-                name="retypePassword"
-                value={formData.retypePassword}
-                onChange={handleChange}
-                placeholder={showRetype ? "Confirm new password" : ""}
-              />
-              <span className="icon-trigger" onClick={() => setShowRetype(!showRetype)}>
-                {showRetype ? <FaEyeSlash /> : <FaEye />}
-              </span>
+              <input type={showRetype ? "text" : "password"} id="retypePass" name="retypePassword" value={formData.retypePassword} onChange={handleChange} />
+              <span className="icon-trigger" onClick={() => setShowRetype(!showRetype)}>{showRetype ? <FaEyeSlash /> : <FaEye />}</span>
             </div>
           </div>
-
           <div className="card-actions">
             <button type="button" className="btn-link save" onClick={handleSaveClick}>Save</button>
           </div>

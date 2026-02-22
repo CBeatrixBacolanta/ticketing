@@ -1,31 +1,45 @@
 import React, { useState } from 'react';
-import SideBar from './pages/sideBar';
-import EditProfile from './pages/editProfile';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import SideBar from './pages/SideBar';
+import EditProfile from './pages/EditProfile';
+import Remarks from './pages/Remarks';
 import './App.css';
 
 function App() {
-  // Just a "Mock Database"
   const [user, setUser] = useState({
     firstName: "Roy",
-    middleInitial: "S", // Added this
+    middleInitial: "S",
     lastName: "Casiño",
     email: "roycasino@gmail.com",
     position: "SR. LEO",
-    profilePic: null
+    profilePic: null 
   });
 
-  // Function to save changes from EditProfile back to the app
   const handleUserUpdate = (updatedData) => {
     setUser((prev) => ({ ...prev, ...updatedData }));
   };
 
   return (
-    <div className="app-layout">
-      <SideBar user={user} />
-      <main className="main-content">
-        <EditProfile user={user} onSave={handleUserUpdate} />
-      </main>
-    </div>
+    <Router>
+      <div className="app-layout">
+        <SideBar user={user} />
+        
+        <main className="main-content">
+          <Routes>
+            {/* This sets the "Home" page to Remarks so you see it first */}
+            <Route path="/" element={<Remarks />} /> 
+            
+            {/* This sets the path for Edit Profile */}
+            <Route path="/edit-profile" element={
+              <EditProfile user={user} onSave={handleUserUpdate} />
+            } />
+            
+            {/* You can add more routes here as your teammate finishes them */}
+            <Route path="/remarks" element={<Remarks />} />
+          </Routes>
+        </main>
+      </div>
+    </Router>
   );
 }
 
