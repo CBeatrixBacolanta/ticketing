@@ -18,7 +18,7 @@ const Remarks = () => {
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
 
-    // Uniform notification state for Green and Red toasts
+    // Uniform notification state for Green (success) and Red (error) toasts
     const [notification, setNotification] = useState({
         show: false,
         message: '',
@@ -26,7 +26,7 @@ const Remarks = () => {
     });
 
     const handleSave = () => {
-        // Check if title is empty or just spaces
+        // 1. Validation Check: If title is empty, show RED error toast
         if (!title.trim()) {
             setNotification({
                 show: true,
@@ -36,15 +36,18 @@ const Remarks = () => {
             return;
         }
 
-        // Success logic
+        // 2. Success Logic: If title exists, show GREEN success toast
         setNotification({
             show: true,
             message: "Remark saved successfully!",
             type: "success"
         });
+
+        // Optional: Log data or send to API here
+        console.log("Saved Remark:", { title, content });
     };
 
-    // Logic to hide the notification after 3 seconds
+    // Logic to auto-hide the notification after 3 seconds
     useEffect(() => {
         if (notification.show) {
             const timer = setTimeout(() => {
@@ -56,7 +59,7 @@ const Remarks = () => {
 
     return (
         <div className="remarks-container">
-            {/* Uniform Slide-in Notification */}
+            {/* Uniform Slide-in Notification Toast */}
             {notification.show && (
                 <div className={`notification-toast ${notification.type}`}>
                     <span className="icon">
@@ -75,6 +78,7 @@ const Remarks = () => {
             </div>
 
             <div className="editor-paper">
+                {/* Title Input Area */}
                 <input
                     type="text"
                     className="remark-title-input"
@@ -83,6 +87,7 @@ const Remarks = () => {
                     onChange={(e) => setTitle(e.target.value)}
                 />
 
+                {/* WYSIWYG Editor Area */}
                 <EditorProvider>
                     <Editor
                         value={content}
