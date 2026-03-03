@@ -1,28 +1,26 @@
-/* Reset and Global Font */
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-}
-
+/* App.css or your main layout file */
 .app-layout {
-    display: flex;
-    min-height: 100vh;
-    background-color: #d1d5db; /* The light gray background from your screenshot */
+  display: flex;
+  width: 100%;
+  min-height: 100vh;
+  background-color: #d1d5db; /* Your gray background */
+  overflow-x: hidden;
 }
 
 .main-content {
-    flex: 1;
-    /* This MUST match the width of your sidebar (260px) */
-    margin-left: 260px; 
-    padding: 60px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+  flex: 1; /* This forces it to fill the gap left by the hidden sidebar */
+  display: flex;
+  flex-direction: column;
+  align-items: center; /* This centers the profile-wrapper horizontally */
+  padding: 40px 20px;
+  transition: all 0.3s ease-in-out;
+  min-width: 0; /* Prevents flex children from overflowing */
 }
 
-.main-content {
-    background-color: #cfd4d9; /* The darker grey background seen in your screenshot */
-    padding: 40px;
-    min-height: 100vh;
+.profile-wrapper {
+  width: 100%;
+  max-width: 900px; /* Limits how wide the cards get on big screens */
+  display: flex;
+  flex-direction: column;
+  gap: 25px;
 }

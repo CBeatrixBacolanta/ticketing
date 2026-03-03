@@ -3,24 +3,29 @@
 
 .profile-wrapper {
     width: 100%;
-    max-width: 1100px;
+    max-width: 1000px;
     font-family: 'Poppins', sans-serif;
     padding-bottom: 50px;
+    margin: 0 auto;
 }
 
 .profile-header {
+    margin-top: 20px;
     margin-bottom: 30px;
-}
+    background-color: #0038A8;
+    padding: 20px;
+    border-radius: 8px;
+}   
 
 .profile-header h1 {
     font-size: 32px;
     font-weight: 800;
-    color: #000000;
+    color: white;
     margin: 0;
 }
 
 .profile-header p {
-    color: #525252;
+    color: white;
     opacity: 0.8;
     font-size: 14px;
 }
