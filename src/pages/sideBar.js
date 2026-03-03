@@ -1,5 +1,5 @@
 import React from 'react';
-import '../styles/sideBar.css';
+import '../styles/SideBar.css';
 import Logo from '../assets/images/logo.png';
 import Profile from '../assets/images/casino.jpg';
 
