@@ -62,7 +62,7 @@ const SideBar = ({ user, isOpen, setIsOpen }) => {
         .nav-link { 
           color: white; text-decoration: none; padding: 12px; border-radius: 8px; 
           font-size: 14px; text-align: left; border: none; background: none; cursor: pointer;
-          transition: 0.2s; width: 100%;
+          transition: 0.2s; width: 100%; text-align: center;
         }
         .nav-link:hover, .nav-link.active { background: rgba(255,255,255,0.1); color: #00c6ff; }
       `}</style>
