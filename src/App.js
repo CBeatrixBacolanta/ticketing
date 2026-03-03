@@ -1,6 +1,6 @@
 import React from 'react';
-import SideBar from './pages/sideBar';
-import EditProfile from './pages/editProfile';
+import SideBar from './pages/SideBar';
+import EditProfile from './pages/EditProfile';
 import './App.css';
 
 function App() {
