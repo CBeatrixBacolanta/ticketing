@@ -132,7 +132,12 @@ const SideBar = ({ user, isOpen, setIsOpen }) => {
             Dashboard
           </button>
 
-          <button className="nav-link">Schedule</button>
+          <button 
+            className={`nav-link ${isActive('/schedule') ? 'active' : ''}`} 
+            onClick={() => navigate('/schedule')}
+          >
+            Schedule
+          </button>
 
           {/* New Report Link */}
           <button 
@@ -148,6 +153,7 @@ const SideBar = ({ user, isOpen, setIsOpen }) => {
           >
             Settings
           </button>
+          
 
           {/* Optional: Add a function to clear localStorage on logout */}
           <button className="nav-link" onClick={() => navigate('/login')}>
