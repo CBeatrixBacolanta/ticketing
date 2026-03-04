@@ -36,9 +36,8 @@ function App() {
           display: 'flex',
           flexDirection: 'column',
           width: '100%',
-          padding: '0' // Removed padding for full-width background
+          padding: '0'
         }}>
-          {/* Container set to 100% width */}
           <div style={{ width: '100%' }}>
             <Routes>
               <Route path="/" element={<Remarks />} />
