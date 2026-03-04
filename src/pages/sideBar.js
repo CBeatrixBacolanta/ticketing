@@ -109,7 +109,7 @@ const SideBar = ({ user, isOpen, setIsOpen }) => {
           <button className={`nav-link ${location.pathname === '/' ? 'active' : ''}`} onClick={() => navigate('/')}>Dashboard</button>
           <button className="nav-link">Schedule</button>
           <button className="nav-link">Report</button>
-          <button className="nav-link" onClick={() => navigate('/edit-profile')}>Settings</button>
+          <button className="nav-link" onClick={() => navigate('/settings')}>Settings</button>
           <button className="nav-link">Logout</button>
         </nav>
       </aside>

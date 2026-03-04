@@ -3,12 +3,20 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import SideBar from './pages/SideBar';
 import EditProfile from './pages/EditProfile';
 import Remarks from './pages/Remarks';
+import Settings from './pages/Settings';
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [user, setUser] = useState(() => {
     const saved = localStorage.getItem('profileData');
-    return saved ? JSON.parse(saved) : { firstName: "User", email: "email@email.com", profilePic: null };
+    const baseData = { 
+      firstName: "User", 
+      lastName: "", 
+      middleInitial: "", 
+      email: "email@email.com", 
+      profilePic: "" 
+    };
+    return saved ? { ...baseData, ...JSON.parse(saved) } : baseData;
   });
 
   const handleUserUpdate = (updatedData) => {
@@ -19,29 +27,26 @@ function App() {
   return (
     <Router>
       <div className="app-layout" style={{ display: 'flex', minHeight: '100vh', background: '#d1d5db' }}>
-        
-        {/* Pass state to Sidebar */}
         <SideBar user={user} isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
 
-        {/* Dynamic margin-left ensures centering works perfectly */}
         <main className="main-content" style={{ 
           flex: 1, 
           marginLeft: sidebarOpen ? '260px' : '0px', 
           transition: 'all 0.3s ease-in-out',
           display: 'flex',
           flexDirection: 'column',
-          alignItems: 'center',
-          padding: '40px 20px'
+          width: '100%',
+          padding: '0' // Removed padding for full-width background
         }}>
-          
-          <div style={{ width: '100%', maxWidth: '1000px' }}>
+          {/* Container set to 100% width */}
+          <div style={{ width: '100%' }}>
             <Routes>
               <Route path="/" element={<Remarks />} />
               <Route path="/edit-profile" element={<EditProfile user={user} onSave={handleUserUpdate} />} />
               <Route path="/remarks" element={<Remarks />} />
+              <Route path="/settings" element={<Settings user={user} onSave={handleUserUpdate} />} />
             </Routes>
           </div>
-
         </main>
       </div>
     </Router>
