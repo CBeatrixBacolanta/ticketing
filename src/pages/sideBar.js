@@ -6,6 +6,9 @@ const SideBar = ({ user, isOpen, setIsOpen }) => {
   const navigate = useNavigate();
   const location = useLocation();
 
+  // Helper function to check if a path is active
+  const isActive = (path) => location.pathname === path;
+
   return (
     <>
       <style>{`
@@ -53,18 +56,32 @@ const SideBar = ({ user, isOpen, setIsOpen }) => {
         .profile-section { display: flex; flex-direction: column; align-items: center; margin-bottom: 30px; width: 100%; }
         .profile-img { width: 90px; height: 90px; border-radius: 50%; object-fit: cover; border: 2px solid white; margin-bottom: 12px; }
         
-        .ad-name { font-size: 16px; font-weight: 800; margin: 0; text-align: center; padding: 0 5px; }
+        .ad-name { font-size: 16px; font-weight: 800; margin: 0; text-align: center; padding: 0 5px; color: white; }
         .ad-email { font-size: 12px; color: #cbd5e0; margin-top: 2px; opacity: 0.9; word-break: break-all; text-align: center; }
         
         .edit-profile-btn { background: none; border: none; color: #4ba2f3; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 5px; margin-top: 12px; }
 
         nav { width: 100%; display: flex; flex-direction: column; gap: 5px; }
         .nav-link { 
-          color: white; text-decoration: none; padding: 12px; border-radius: 8px; 
-          font-size: 14px; text-align: left; border: none; background: none; cursor: pointer;
-          transition: 0.2s; width: 100%; text-align: center
+          color: white; 
+          text-decoration: none; 
+          padding: 12px; 
+          border-radius: 8px; 
+          font-size: 14px; 
+          border: none; 
+          background: none; 
+          cursor: pointer;
+          transition: 0.2s; 
+          width: 100%; 
+          text-align: center;
         }
-        .nav-link:hover, .nav-link.active { background: rgba(255,255,255,0.1); color: #00c6ff; }
+        
+        /* Active State Colors from your design */
+        .nav-link:hover, .nav-link.active { 
+          background: rgba(255,255,255,0.1); 
+          color: #00c6ff; 
+          font-weight: bold;
+        }
       `}</style>
 
       <button className="closed-btn" onClick={() => setIsOpen(true)}>
@@ -93,24 +110,49 @@ const SideBar = ({ user, isOpen, setIsOpen }) => {
               <svg viewBox="0 0 24 24" fill="#718096" width="50" height="50"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" /></svg>
             </div>
           )}
-          {/* Formatted Name */}
+          
           <h4 className="ad-name">
             {user.firstName} {user.middleInitial ? `${user.middleInitial}. ` : ""}{user.lastName}
           </h4>
-          {/* Display Email */}
           <p className="ad-email">{user.email}</p>
           
-          <button className="edit-profile-btn" onClick={() => navigate("/edit-profile")}>
+          <button 
+            className={`edit-profile-btn ${isActive('/edit-profile') ? 'active' : ''}`} 
+            onClick={() => navigate("/edit-profile")}
+          >
             <FaUserEdit /> Edit Profile
           </button>
         </div>
 
         <nav>
-          <button className={`nav-link ${location.pathname === '/' ? 'active' : ''}`} onClick={() => navigate('/')}>Dashboard</button>
+          <button 
+            className={`nav-link ${isActive('/') || isActive('/remarks') ? 'active' : ''}`} 
+            onClick={() => navigate('/')}
+          >
+            Dashboard
+          </button>
+
           <button className="nav-link">Schedule</button>
-          <button className="nav-link">Report</button>
-          <button className="nav-link" onClick={() => navigate('/settings')}>Settings</button>
-          <button className="nav-link">Logout</button>
+
+          {/* New Report Link */}
+          <button 
+            className={`nav-link ${isActive('/reports') ? 'active' : ''}`} 
+            onClick={() => navigate('/reports')}
+          >
+            Report
+          </button>
+
+          <button 
+            className={`nav-link ${isActive('/settings') ? 'active' : ''}`} 
+            onClick={() => navigate('/settings')}
+          >
+            Settings
+          </button>
+
+          {/* Optional: Add a function to clear localStorage on logout */}
+          <button className="nav-link" onClick={() => navigate('/login')}>
+            Logout
+          </button>
         </nav>
       </aside>
     </>

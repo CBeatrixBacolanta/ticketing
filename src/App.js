@@ -4,6 +4,7 @@ import SideBar from './pages/SideBar';
 import EditProfile from './pages/EditProfile';
 import Remarks from './pages/Remarks';
 import Settings from './pages/Settings';
+import Reports from './pages/Reports';
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -44,6 +45,7 @@ function App() {
               <Route path="/edit-profile" element={<EditProfile user={user} onSave={handleUserUpdate} />} />
               <Route path="/remarks" element={<Remarks />} />
               <Route path="/settings" element={<Settings user={user} onSave={handleUserUpdate} />} />
+              <Route path="/reports" element={<Reports user={user} />} />
             </Routes>
           </div>
         </main>
