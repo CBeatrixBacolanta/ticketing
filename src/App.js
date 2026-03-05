@@ -1,65 +1,95 @@
-import React, { useState } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import ScrollToTop from './pages/ScrollToTop';
 import SideBar from './pages/SideBar';
-import EditProfile from './pages/EditProfile';
-import Remarks from './pages/Remarks';
-import Settings from './pages/Settings';
-import Reports from './pages/Reports';
-import Schedule from './pages/Schedule';
+import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Notifications from './pages/Notifications';
+import Reports from './pages/Reports';
+import Settings from './pages/Settings';
+import Schedule from './pages/Schedule';
+import EditProfile from './pages/EditProfile';
+import Remarks from './pages/Remarks'; // IMPORT REMARKS
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(() => localStorage.getItem('isAuthenticated') === 'true');
   const [user, setUser] = useState(() => {
-    const saved = localStorage.getItem('profileData');
-    const baseData = { 
-      firstName: "User", 
-      lastName: "", 
-      middleInitial: "", 
-      email: "email@email.com", 
-      profilePic: "" 
-    };
-    return saved ? { ...baseData, ...JSON.parse(saved) } : baseData;
+    const saved = localStorage.getItem('currentUser');
+    return saved ? JSON.parse(saved) : null;
   });
 
-  const handleUserUpdate = (updatedData) => {
-    setUser(updatedData);
-    localStorage.setItem('profileData', JSON.stringify(updatedData));
+  const [notifications, setNotifications] = useState(() => {
+    const saved = localStorage.getItem('notifications');
+    return saved ? JSON.parse(saved) : [
+      { id: 1, officer: "CASIÑO, Roy S.", action: "hearing completed", time: "13 mins ago", status: "yellow", isRead: false },
+    ];
+  });
+
+  useEffect(() => {
+    localStorage.setItem('notifications', JSON.stringify(notifications));
+  }, [notifications]);
+
+  const handleMarkAsRead = (id) => {
+    setNotifications(prev => prev.map(n => n.id === id ? { ...n, isRead: true } : n));
+  };
+
+  const handleLogin = (userData) => {
+    setIsAuthenticated(true);
+    setUser(userData);
+    localStorage.setItem('isAuthenticated', 'true');
+    localStorage.setItem('currentUser', JSON.stringify(userData));
+  };
+
+  const handleLogout = () => {
+    localStorage.clear();
+    setIsAuthenticated(false);
+    setUser(null);
   };
 
   return (
     <Router>
-      {/* 1. INSERT HERE: This resets scroll position whenever the path changes */}
       <ScrollToTop />
+      {!isAuthenticated ? (
+        <Routes>
+          <Route path="/login" element={<Login onLogin={handleLogin} />} />
+          <Route path="*" element={<Navigate to="/login" replace />} />
+        </Routes>
+      ) : (
+        <div className="app-layout" style={{ display: 'flex', minHeight: '100vh', background: '#d1d5db' }}>
+          <SideBar user={user} isOpen={sidebarOpen} setIsOpen={setSidebarOpen} onLogout={handleLogout} />
 
-      <div className="app-layout" style={{ display: 'flex', minHeight: '100vh', background: '#d1d5db' }}>
-        <SideBar user={user} isOpen={sidebarOpen} setIsOpen={setSidebarOpen} />
-
-        <main className="main-content" style={{ 
-          flex: 1, 
-          marginLeft: sidebarOpen ? '260px' : '0px', 
-          transition: 'all 0.3s ease-in-out',
-          display: 'flex',
-          flexDirection: 'column',
-          width: '100%',
-          padding: '0'
-        }}>
-          <div style={{ width: '100%' }}>
+          <main className="main-content" style={{
+            flex: 1,
+            marginLeft: sidebarOpen ? '260px' : '0px',
+            transition: 'all 0.3s ease-in-out',
+            width: '100%'
+          }}>
             <Routes>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/edit-profile" element={<EditProfile user={user} onSave={handleUserUpdate} />} />
-              <Route path="/remarks" element={<Remarks user={user} />} />
-              <Route path="/settings" element={<Settings user={user} onSave={handleUserUpdate} />} />
+              <Route path="/dashboard" element={<Dashboard user={user} notifications={notifications} />} />
+              <Route path="/notifications" element={<Notifications notifications={notifications} onMarkAsRead={handleMarkAsRead} />} />
               <Route path="/reports" element={<Reports user={user} />} />
+              <Route
+                path="/settings"
+                element={
+                  <Settings
+                    user={user}
+                    onSave={handleLogin}
+                    onLogout={handleLogout} // THIS WAS MISSING
+                  />
+                }
+              />
               <Route path="/schedule" element={<Schedule user={user} />} />
-              <Route path="/dashboard" element={<Dashboard user={user} />} />
-              <Route path="/notifications" element={<Notifications />} />
+              <Route path="/edit-profile" element={<EditProfile user={user} setUser={setUser} />} />
+
+              <Route path="/remarks/:id" element={<Remarks />} />
+
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Routes>
-          </div>
-        </main>
-      </div>
+          </main>
+        </div>
+      )}
     </Router>
   );
 }

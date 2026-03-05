@@ -1,13 +1,21 @@
 import React from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { FaUserEdit, FaBars, FaTimes } from "react-icons/fa";
+import { FaUserEdit, FaBars, FaTimes, FaSignOutAlt } from "react-icons/fa";
 
-const SideBar = ({ user, isOpen, setIsOpen }) => { 
+const SideBar = ({ user, isOpen, setIsOpen, onLogout }) => { 
   const navigate = useNavigate();
   const location = useLocation();
 
   // Helper function to check if a path is active
   const isActive = (path) => location.pathname === path;
+
+  // Handle Logout with confirmation
+  const handleLogoutClick = () => {
+    if (window.confirm("Are you sure you want to logout?")) {
+      onLogout(); 
+      navigate('/login');
+    }
+  };
 
   return (
     <>
@@ -74,16 +82,28 @@ const SideBar = ({ user, isOpen, setIsOpen }) => {
           transition: 0.2s; 
           width: 100%; 
           text-align: center;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 10px;
         }
         
-        /* Active State Colors from your design */
         .nav-link:hover, .nav-link.active { 
           background: rgba(255,255,255,0.1); 
           color: #00c6ff; 
           font-weight: bold;
         }
+
+        .logout-link {
+          color: #ff4d4d !important;
+          margin-top: 20px;
+        }
+        .logout-link:hover {
+          background: rgba(255, 77, 77, 0.1) !important;
+        }
       `}</style>
 
+      {/* Button to show sidebar when closed */}
       <button className="closed-btn" onClick={() => setIsOpen(true)}>
         <FaBars />
       </button>
@@ -103,7 +123,8 @@ const SideBar = ({ user, isOpen, setIsOpen }) => {
         </div>
 
         <div className="profile-section">
-          {user.profilePic ? (
+          {/* Profile Picture Fallback */}
+          {user?.profilePic ? (
              <img src={user.profilePic} className="profile-img" alt="User" />
           ) : (
             <div style={{width: '90px', height: '90px', borderRadius: '50%', background: '#cbd5e0', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '12px', border: '2px solid white'}}>
@@ -111,10 +132,15 @@ const SideBar = ({ user, isOpen, setIsOpen }) => {
             </div>
           )}
           
+          {/* NAME DISPLAY: Defaults to "User" if names are empty */}
           <h4 className="ad-name">
-            {user.firstName} {user.middleInitial ? `${user.middleInitial}. ` : ""}{user.lastName}
+            {user?.firstName || user?.lastName 
+              ? `${user.firstName} ${user.middleInitial ? `${user.middleInitial}. ` : ""}${user.lastName}` 
+              : "User"}
           </h4>
-          <p className="ad-email">{user.email}</p>
+
+          {/* EMAIL DISPLAY: Defaults to email@email.com */}
+          <p className="ad-email">{user?.email || "email@email.com"}</p>
           
           <button 
             className={`edit-profile-btn ${isActive('/edit-profile') ? 'active' : ''}`} 
@@ -132,7 +158,6 @@ const SideBar = ({ user, isOpen, setIsOpen }) => {
             Dashboard
           </button>
 
-          {/* New Report Link */}
           <button 
             className={`nav-link ${isActive('/reports') ? 'active' : ''}`} 
             onClick={() => navigate('/reports')}
@@ -147,10 +172,8 @@ const SideBar = ({ user, isOpen, setIsOpen }) => {
             Settings
           </button>
           
-
-          {/* Optional: Add a function to clear localStorage on logout */}
-          <button className="nav-link" onClick={() => navigate('/login')}>
-            Logout
+          <button className="nav-link logout-link" onClick={handleLogoutClick}>
+            <FaSignOutAlt /> Logout
           </button>
         </nav>
       </aside>

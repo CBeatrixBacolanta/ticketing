@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../styles/Dashboard.css';
-import { FaChevronLeft, FaChevronRight } from 'react-icons/fa';
+import { FaChevronLeft, FaChevronRight, FaTimes } from 'react-icons/fa';
 
-const Dashboard = ({ user }) => {
+const Dashboard = ({ user, notifications }) => {
   const navigate = useNavigate();
-  const [showNotifications, setShowNotifications] = useState(false);
-  const [notifications, setNotifications] = useState([]);
+  const [showPanel, setShowPanel] = useState(false);
   const [hearings, setHearings] = useState([]);
   
   // Pagination State
@@ -22,22 +21,23 @@ const Dashboard = ({ user }) => {
     };
 
     const sorted = savedHearings.sort((a, b) => {
-      const monthA = monthMap[a.date.split(' ')[0].toUpperCase()];
-      const monthB = monthMap[b.date.split(' ')[0].toUpperCase()];
-      const dayA = parseInt(a.day || a.date.split(' ')[1]);
-      const dayB = parseInt(b.day || b.date.split(' ')[1]);
+      const monthA = monthMap[a.date?.split(' ')[0].toUpperCase()] || 0;
+      const monthB = monthMap[b.date?.split(' ')[0].toUpperCase()] || 0;
+      const dayA = parseInt(a.day || a.date?.split(' ')[1]) || 0;
+      const dayB = parseInt(b.day || b.date?.split(' ')[1]) || 0;
 
       if (monthA !== monthB) return monthA - monthB;
       if (dayA !== dayB) return dayA - dayB;
 
       const parseTimeToMinutes = (timeStr) => {
+        if (!timeStr) return 0;
         const startTime = timeStr.split(' to ')[0]; 
         const [time, modifier] = startTime.split(' ');
         let [hours, minutes] = time.split(':');
         hours = parseInt(hours, 10);
         minutes = parseInt(minutes, 10);
         if (hours === 12) hours = 0;
-        if (modifier.toLowerCase() === 'pm') hours += 12;
+        if (modifier?.toLowerCase() === 'pm') hours += 12;
         return hours * 60 + minutes;
       };
 
@@ -45,17 +45,9 @@ const Dashboard = ({ user }) => {
     });
 
     setHearings(sorted);
-    const savedNotifs = JSON.parse(localStorage.getItem('notifications')) || [];
-    setNotifications(savedNotifs);
   }, []);
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
-
-  const getCountForMonth = (monthName) => {
-    return hearings.filter(h => 
-      h.date && h.date.toUpperCase().includes(monthName.substring(0, 3).toUpperCase())
-    ).length;
-  };
 
   const reportMonths = [
     { name: 'January', key: 'JAN' }, { name: 'April', key: 'APR' },
@@ -71,9 +63,45 @@ const Dashboard = ({ user }) => {
 
   return (
     <div className="app-container">
-      {showNotifications && (
-        <div className="page-overlay" onClick={() => setShowNotifications(false)}></div>
+      {/* Background Overlay */}
+      {showPanel && (
+        <div className="page-overlay" onClick={() => setShowPanel(false)}></div>
       )}
+
+      {/* --- RIGHT SIDE NOTIFICATION PANEL --- */}
+      <div className={`side-notif-panel ${showPanel ? 'open' : ''}`}>
+        <div className="side-panel-header">
+          <h3>Notifications</h3>
+          <button className="close-panel-btn" onClick={() => setShowPanel(false)}>
+            <FaTimes />
+          </button>
+        </div>
+
+        <div className="side-panel-scroll">
+          {notifications.length > 0 ? (
+            notifications.map((n) => (
+              <div key={n.id} className={`side-notif-row ${n.isRead ? 'read' : 'unread'}`}>
+                <div className={`side-accent ${n.status}`}></div>
+                <div className="side-notif-body">
+                  <p className="notif-title"><strong>Status:</strong> {n.action}</p>
+                  <p className="notif-remarks">Remarks: Quarterly goals reviewed and resource allocation finalized</p>
+                  <p className="notif-officer">Officer: <span>{n.officer}</span></p>
+                  <div className="notif-meta-details">
+                    <span>🕒 09:30-10:00 am</span>
+                    <span>📅 Feb 10, 2026</span>
+                  </div>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="none-state">No Notifications</div>
+          )}
+        </div>
+
+        <div className="side-panel-footer" onClick={() => navigate('/notifications')}>
+          See All Notifications
+        </div>
+      </div>
 
       <div className="layout-body">
         <main className="main-wrapper">
@@ -92,7 +120,7 @@ const Dashboard = ({ user }) => {
                     <p>Schedule</p>
                   </div>
                   
-                  <div className="btn-card navy" onClick={() => setShowNotifications(!showNotifications)}>
+                  <div className="btn-card navy" onClick={() => setShowPanel(true)}>
                     {unreadCount > 0 && <div className="badge">{unreadCount}</div>}
                     <svg className="custom-icon" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
                       <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
@@ -107,7 +135,7 @@ const Dashboard = ({ user }) => {
                   <div className="report-column">
                     {reportMonths.filter((_, i) => i % 2 === 0).map((m) => (
                       <div key={m.name} className="report-box">
-                        <span className="count">{getCountForMonth(m.name)}</span>
+                        <span className="count">{hearings.filter(h => h.date?.toUpperCase().includes(m.key)).length}</span>
                         <span className="month">{m.name}</span>
                       </div>
                     ))}
@@ -115,7 +143,7 @@ const Dashboard = ({ user }) => {
                   <div className="report-column">
                     {reportMonths.filter((_, i) => i % 2 === 1).map((m) => (
                       <div key={m.name} className="report-box">
-                        <span className="count">{getCountForMonth(m.name)}</span>
+                        <span className="count">{hearings.filter(h => h.date?.toUpperCase().includes(m.key)).length}</span>
                         <span className="month">{m.name}</span>
                       </div>
                     ))}
@@ -138,19 +166,16 @@ const Dashboard = ({ user }) => {
                           <p>{m.time}</p>
                         </div>
                         <div className="m-date">
-                          <span className="m-month">{m.date.split(' ')[0]}</span>
+                          <span className="m-month">{m.date?.split(' ')[0]}</span>
                           <strong className="m-day">{m.day || m.date?.split(' ')[1]}</strong>
                         </div>
                       </div>
                     ))
                   ) : (
-                    <div className="empty-meetings">
-                      No upcoming hearings found in schedule.
-                    </div>
+                    <div className="empty-meetings">No upcoming hearings found.</div>
                   )}
                 </div>
 
-                {/* PAGINATION MOVED TO THE BOTTOM */}
                 {hearings.length > itemsPerPage && (
                   <div className="pagination-controls-bottom">
                     <FaChevronLeft 
@@ -159,11 +184,7 @@ const Dashboard = ({ user }) => {
                     />
                     <div className="pagination-dots">
                       {Array.from({ length: totalPages }).map((_, i) => (
-                        <span 
-                          key={i} 
-                          className={`dot-item ${currentPage === i ? 'active' : ''}`} 
-                          onClick={() => setCurrentPage(i)} 
-                        />
+                        <span key={i} className={`dot-item ${currentPage === i ? 'active' : ''}`} onClick={() => setCurrentPage(i)} />
                       ))}
                     </div>
                     <FaChevronRight 
@@ -173,7 +194,6 @@ const Dashboard = ({ user }) => {
                   </div>
                 )}
               </div>
-
             </div>
           </div>
         </main>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom'; // Added useParams
 import {
     Editor,
     EditorProvider,
@@ -16,6 +16,7 @@ import {
 import '../styles/Remarks.css';
 
 const Remarks = () => {
+    const { id } = useParams(); // Get hearing ID from URL
     const navigate = useNavigate();
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
@@ -36,13 +37,27 @@ const Remarks = () => {
             return;
         }
 
+        // --- UPDATE LOGIC FOR REPORTS ---
+        const savedHearings = JSON.parse(localStorage.getItem('hearings')) || [];
+        const updatedHearings = savedHearings.map(h => {
+            // Find the hearing by ID and mark it as 'Done'
+            if (h.id.toString() === id.toString()) {
+                return { ...h, status: 'Done', remarkTitle: title, remarkContent: content };
+            }
+            return h;
+        });
+        
+        localStorage.setItem('hearings', JSON.stringify(updatedHearings));
+        // --------------------------------
+
         setNotification({
             show: true,
-            message: "Remark saved successfully!",
+            message: "Remark saved successfully! Hearing marked as Done.",
             type: "success"
         });
 
-        console.log("Saved Remark:", { title, content });
+        // Redirect back to schedule after success
+        setTimeout(() => navigate('/schedule'), 2000);
     };
 
     const handleCancel = () => {
@@ -92,7 +107,7 @@ const Remarks = () => {
                         onChange={(e) => setContent(e.target.value)}
                         containerProps={{
                             style: {
-                                height: '750px',
+                                height: '700px',
                                 border: 'none',
                                 fontFamily: '"Times New Roman", Times, serif'
                             }

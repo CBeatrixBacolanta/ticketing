@@ -16,7 +16,6 @@ const EditProfile = ({ user, onSave }) => {
   const [showRetype, setShowRetype] = useState(false);
   const fileInputRef = useRef(null);
 
-  // Auto-hide notification after 3 seconds
   useEffect(() => {
     if (notification.show) {
       const timer = setTimeout(() => setNotification({ ...notification, show: false }), 3000);
@@ -26,7 +25,6 @@ const EditProfile = ({ user, onSave }) => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    // Special handling for Middle Initial to keep it one uppercase letter
     const val = name === "middleInitial" ? value.charAt(0).toUpperCase() : value;
     setFormData({ ...formData, [name]: val });
   };

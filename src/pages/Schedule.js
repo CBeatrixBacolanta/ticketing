@@ -14,19 +14,14 @@ const Schedule = () => {
   const [officerList, setOfficerList] = useState([]);
 
   useEffect(() => {
-    // 1. Load Hearings
     const savedHearings = JSON.parse(localStorage.getItem('hearings')) || [];
     setAllHearings(savedHearings);
 
-    // 2. Load Officers registered by Admin
     const allUsers = JSON.parse(localStorage.getItem('registeredUsers')) || [];
-    
-    // Filter only those with role 'Officer'
     const registeredOfficers = allUsers
       .filter(user => user.role === 'Officer')
       .map(user => user.fullName);
 
-    // If Admin hasn't added anyone yet, use fallback for testing
     if (registeredOfficers.length > 0) {
       setOfficerList(registeredOfficers);
     } else {
@@ -82,6 +77,7 @@ const Schedule = () => {
       time: formData.availableTime,
       day: formData.selectedDay,
       officer: formData.officer,
+      status: "Scheduled", // Default status
       date: `${formData.selectedMonth.substring(0, 3).toUpperCase()} ${formData.selectedDay}`,
       dow: new Date(2026, months.indexOf(formData.selectedMonth), formData.selectedDay)
             .toLocaleDateString('en-US', { weekday: 'long' })
@@ -98,24 +94,26 @@ const Schedule = () => {
     setHearingPage(0);
   };
 
-  if (showLog) return <ActivityLog onBack={() => setShowLog(false)} onRemark={() => navigate('/remarks')} />;
+  // UPDATED: Pass the ID to the remark navigation
+  if (showLog) return (
+    <ActivityLog 
+      onBack={() => setShowLog(false)} 
+      onRemark={(id) => navigate(`/remarks/${id}`)} 
+    />
+  );
 
   return (
     <div className="schedule-page-wrapper">
       <div className="red-bg-accent"></div>
       <div className="schedule-container">
-
-        {/* LEFT COLUMN: CREATE SCHEDULE FORM */}
         <div className="create-card">
           <div className="title-with-underline">
             <h2 className="section-title">Create New Schedule</h2>
           </div>
-
           <div className="input-group">
             <label>Purpose:</label>
             <input type="text" name="purpose" value={formData.purpose} onChange={handleInputChange} className="sched-input" placeholder="Reason" />
           </div>
-
           <div className="row-group">
             <div className="input-group">
               <label>Requesting Party:</label>
@@ -126,7 +124,6 @@ const Schedule = () => {
               <input type="text" name="respondingParty" value={formData.respondingParty} onChange={handleInputChange} className="sched-input" placeholder="Name" />
             </div>
           </div>
-
           <div className="row-group">
             <div className="input-group">
               <label>Available day:</label>
@@ -174,7 +171,6 @@ const Schedule = () => {
               </div>
             </div>
           </div>
-
           <label className="group-label">Claims/Issues</label>
           <div className="row-group">
             <div className="input-group">
@@ -206,16 +202,10 @@ const Schedule = () => {
               <input type="text" name="otherIssues" value={formData.otherIssues} onChange={handleInputChange} className="sched-input" placeholder="Type here" />
             </div>
           </div>
-
           <div className="input-group" style={{ marginTop: '15px' }}>
             <label>Available Hearing Officer</label>
             <div className="select-wrapper">
-              <select 
-                name="officer" 
-                value={formData.officer} 
-                onChange={handleInputChange} 
-                className="sched-input"
-              >
+              <select name="officer" value={formData.officer} onChange={handleInputChange} className="sched-input">
                 <option value="">Select Officer Name</option>
                 {officerList.map((name, index) => (
                   <option key={index} value={name}>{name}</option>
@@ -224,18 +214,15 @@ const Schedule = () => {
               <FaChevronDown className="select-icon" />
             </div>
           </div>
-
           <button className="create-btn" onClick={handleSubmit}>Create Schedule</button>
         </div>
 
-        {/* RIGHT COLUMN: CALENDAR & RECENT HEARINGS */}
         <div className="calendar-card fixed-calendar-card">
           <div className="legend-bar">
             <span><span className="dot available-dot"></span> Available</span>
             <span><span className="dot limited-dot"></span> Limited</span>
             <span><span className="dot booked-dot"></span> Booked</span>
           </div>
-
           <div className="calendar-main-section">
             <div className="calendar-header">
               <FaChevronLeft onClick={() => changeMonth(-1)} style={{ cursor: 'pointer' }} />
@@ -250,13 +237,11 @@ const Schedule = () => {
               ))}
             </div>
           </div>
-
           <div className="recent-section">
             <div className="recent-header">
               <div className="title-with-underline">
                 <h4 className="section-title small">Recent Hearings</h4>
               </div>
-              
               {hearingsForSelectedMonth.length > itemsPerPage && (
                 <div className="pagination-controls">
                   <FaChevronLeft onClick={() => setHearingPage(Math.max(0, hearingPage - 1))} className={hearingPage === 0 ? 'disabled' : ''} />
@@ -269,7 +254,6 @@ const Schedule = () => {
                 </div>
               )}
             </div>
-
             <div className="recent-hearings-list">
               {currentRecentPage.length > 0 ? (
                 currentRecentPage.map((h) => (

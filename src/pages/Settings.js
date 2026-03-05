@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom"; // IMPORT NAVIGATE
 import "../styles/Settings.css";
 
-const Settings = ({ user, onSave }) => {
+// Added onLogout to the destructured props
+const Settings = ({ user, onSave, onLogout }) => {
+  const navigate = useNavigate(); // INITIALIZE NAVIGATE
   const [notifications, setNotifications] = useState(true);
   const [password, setPassword] = useState("password123");
 
-  // 1. Notification State
   const [toast, setToast] = useState({ show: false, message: "", type: "" });
 
-  // 2. Auto-hide notification after 3 seconds
   useEffect(() => {
     if (toast.show) {
       const timer = setTimeout(() => {
@@ -18,19 +19,16 @@ const Settings = ({ user, onSave }) => {
     }
   }, [toast]);
 
-  // 3. Helper to trigger the toast
   const triggerToast = (message, type) => {
     setToast({ show: true, message: message, type: type });
   };
 
   const handleSave = () => {
-    // Simulated success logic
     onSave(user);
     triggerToast("Settings saved successfully!", "success");
   };
 
   const handleDiscard = () => {
-    // Simulated error/warning logic
     triggerToast("Changes discarded!", "error");
   };
 
@@ -38,9 +36,14 @@ const Settings = ({ user, onSave }) => {
     triggerToast("Account deletion is disabled in demo mode.", "error");
   };
 
+  // NEW LOGOUT HANDLER
+  const handleLogoutClick = () => {
+    onLogout(); // This triggers the cleanup in App.js
+    navigate("/login"); // This moves the user to the login screen
+  };
+
   return (
     <div className="settings-page">
-      {/* 4. The Notification Toast UI */}
       {toast.show && (
         <div className={`notification-toast ${toast.type}`}>
           <span className="toast-icon">{toast.type === "success" ? "✓" : "✕"}</span>
@@ -90,16 +93,17 @@ const Settings = ({ user, onSave }) => {
             <div className="settings-card profile-card-center shadow-glow">
               <h3>Profile Picture</h3>
               <div className="profile-avatar-border">
-                {user.profilePic ? (
+                {user?.profilePic ? (
                   <img src={user.profilePic} alt="User Profile" className="profile-avatar-img" />
                 ) : (
                   <div className="profile-placeholder">User Profile</div>
                 )}
               </div>
               <h2 className="profile-display-name">
-                {user.firstName} {user.middleInitial ? `${user.middleInitial}. ` : ""}{user.lastName}
+                {user?.firstName} {user?.middleInitial ? `${user.middleInitial}. ` : ""}{user?.lastName}
               </h2>
-              <button className="btn-logout-settings">Logout</button>
+              {/* UPDATED LOGOUT BUTTON */}
+              <button className="btn-logout-settings" onClick={handleLogoutClick}>Logout</button>
             </div>
           </div>
         </div>
