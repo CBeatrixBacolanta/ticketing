@@ -7,6 +7,8 @@ import Remarks from './pages/Remarks';
 import Settings from './pages/Settings';
 import Reports from './pages/Reports';
 import Schedule from './pages/Schedule';
+import Dashboard from './pages/Dashboard';
+import Notifications from './pages/Notifications';
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -46,12 +48,14 @@ function App() {
         }}>
           <div style={{ width: '100%' }}>
             <Routes>
-              <Route path="/" element={<Remarks />} />
+              <Route path="/" element={<Dashboard />} />
               <Route path="/edit-profile" element={<EditProfile user={user} onSave={handleUserUpdate} />} />
               <Route path="/remarks" element={<Remarks user={user} />} />
               <Route path="/settings" element={<Settings user={user} onSave={handleUserUpdate} />} />
               <Route path="/reports" element={<Reports user={user} />} />
               <Route path="/schedule" element={<Schedule user={user} />} />
+              <Route path="/dashboard" element={<Dashboard user={user} />} />
+              <Route path="/notifications" element={<Notifications />} />
             </Routes>
           </div>
         </main>

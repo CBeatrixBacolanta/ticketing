@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
     Editor,
     EditorProvider,
@@ -15,10 +16,10 @@ import {
 import '../styles/Remarks.css';
 
 const Remarks = () => {
+    const navigate = useNavigate();
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
 
-    // Uniform notification state for Green (success) and Red (error) toasts
     const [notification, setNotification] = useState({
         show: false,
         message: '',
@@ -26,7 +27,6 @@ const Remarks = () => {
     });
 
     const handleSave = () => {
-        // 1. Validation Check: If title is empty, show RED error toast
         if (!title.trim()) {
             setNotification({
                 show: true,
@@ -36,30 +36,30 @@ const Remarks = () => {
             return;
         }
 
-        // 2. Success Logic: If title exists, show GREEN success toast
         setNotification({
             show: true,
             message: "Remark saved successfully!",
             type: "success"
         });
 
-        // Optional: Log data or send to API here
         console.log("Saved Remark:", { title, content });
     };
 
-    // Logic to auto-hide the notification after 3 seconds
+    const handleCancel = () => {
+        navigate('/schedule');
+    };
+
     useEffect(() => {
         if (notification.show) {
             const timer = setTimeout(() => {
-                setNotification({ ...notification, show: false });
+                setNotification(prev => ({ ...prev, show: false }));
             }, 3000);
             return () => clearTimeout(timer);
         }
-    }, [notification]);
+    }, [notification.show]);
 
     return (
         <div className="remarks-container">
-            {/* Uniform Slide-in Notification Toast */}
             {notification.show && (
                 <div className={`notification-toast ${notification.type}`}>
                     <span className="icon">
@@ -72,13 +72,12 @@ const Remarks = () => {
             <div className="remarks-header">
                 <h1>Hearing Remarks</h1>
                 <div className="remarks-actions">
-                    <button className="btn-secondary">Cancel</button>
+                    <button className="btn-secondary" onClick={handleCancel}>Cancel</button>
                     <button className="btn-primary" onClick={handleSave}>Submit Remark</button>
                 </div>
             </div>
 
             <div className="editor-paper">
-                {/* Title Input Area */}
                 <input
                     type="text"
                     className="remark-title-input"
@@ -87,7 +86,6 @@ const Remarks = () => {
                     onChange={(e) => setTitle(e.target.value)}
                 />
 
-                {/* WYSIWYG Editor Area */}
                 <EditorProvider>
                     <Editor
                         value={content}

@@ -126,17 +126,10 @@ const SideBar = ({ user, isOpen, setIsOpen }) => {
 
         <nav>
           <button 
-            className={`nav-link ${isActive('/') || isActive('/remarks') ? 'active' : ''}`} 
-            onClick={() => navigate('/')}
+            className={`nav-link ${isActive('/') || isActive('/dashboard') ? 'active' : ''}`} 
+            onClick={() => navigate('/dashboard')}
           >
             Dashboard
-          </button>
-
-          <button 
-            className={`nav-link ${isActive('/schedule') ? 'active' : ''}`} 
-            onClick={() => navigate('/schedule')}
-          >
-            Schedule
           </button>
 
           {/* New Report Link */}

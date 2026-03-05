@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../styles/Schedule.css';
 import ActivityLog from './ActivityLog';
@@ -7,34 +7,46 @@ import { FaChevronLeft, FaChevronRight, FaClock, FaChevronDown } from 'react-ico
 const Schedule = () => {
   const navigate = useNavigate();
   const [showLog, setShowLog] = useState(false);
-  
-  // State for calendar display navigation
-  const [currentDate, setCurrentDate] = useState(new Date(2026, 1, 1));
-  
-  // Pagination State for Recent Hearings
+  const [currentDate, setCurrentDate] = useState(new Date(2026, 2, 5)); 
   const [hearingPage, setHearingPage] = useState(0);
-  const itemsPerPage = 3;
+  const itemsPerPage = 2; 
+  const [allHearings, setAllHearings] = useState([]);
+  const [officerList, setOfficerList] = useState([]);
 
-  // Form State
+  useEffect(() => {
+    // 1. Load Hearings
+    const savedHearings = JSON.parse(localStorage.getItem('hearings')) || [];
+    setAllHearings(savedHearings);
+
+    // 2. Load Officers registered by Admin
+    const allUsers = JSON.parse(localStorage.getItem('registeredUsers')) || [];
+    
+    // Filter only those with role 'Officer'
+    const registeredOfficers = allUsers
+      .filter(user => user.role === 'Officer')
+      .map(user => user.fullName);
+
+    // If Admin hasn't added anyone yet, use fallback for testing
+    if (registeredOfficers.length > 0) {
+      setOfficerList(registeredOfficers);
+    } else {
+      setOfficerList([
+        "APARECIO, Harold D.",
+        "CALING, Mhardy Mae V.",
+        "CANO, Paolo Miguel P.",
+        "BUSANGILAN, Rommyl Rey C.",
+        "CASIÑO, Roy S.",
+        "TALON, Sittie Nashiba D."
+      ]);
+    }
+  }, []);
+
   const [formData, setFormData] = useState({
-    purpose: '',
-    requestingParty: '',
-    respondingParty: '',
-    selectedMonth: 'February',
-    selectedDay: '',
-    availableTime: 'Select Time Slot',
-    laborViolation: 'Select Issue',
-    otherIssues: '',
-    officer: '' 
+    purpose: '', requestingParty: '', respondingParty: '',
+    selectedMonth: 'March', selectedDay: '5',
+    availableTime: '9:30 am to 10:00 am', laborViolation: 'Select',
+    otherIssues: '', officer: ''
   });
-
-  // Mock Data - Change to [] to see the "Empty State"
-  const allHearings = [
-    { id: 1, day: '10', dow: 'Tue', title: 'Hearing Review', time: '09:00 am' },
-    { id: 2, day: '11', dow: 'Wed', title: 'Case Setup', time: '10:30 am' },
-    { id: 3, day: '12', dow: 'Thu', title: 'Labor Dispute', time: '01:00 pm' },
-    { id: 4, day: '15', dow: 'Sun', title: 'Follow-up', time: '02:00 pm' },
-  ];
 
   const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
   const year = currentDate.getFullYear();
@@ -44,45 +56,61 @@ const Schedule = () => {
   const firstDayIndex = new Date(year, month, 1).getDay();
   const startingOffset = firstDayIndex === 0 ? 6 : firstDayIndex - 1;
 
-  // Pagination Logic
-  const totalPages = Math.ceil(allHearings.length / itemsPerPage) || 1;
-  const currentHearings = allHearings.slice(hearingPage * itemsPerPage, (hearingPage + 1) * itemsPerPage);
+  const hearingsForSelectedMonth = allHearings
+    .filter(h => h.date && h.date.toUpperCase().includes(monthName.substring(0, 3).toUpperCase()))
+    .sort((a, b) => parseInt(a.day) - parseInt(b.day));
+
+  const totalPages = Math.ceil(hearingsForSelectedMonth.length / itemsPerPage) || 1;
+  const currentRecentPage = hearingsForSelectedMonth.slice(
+    hearingPage * itemsPerPage, 
+    (hearingPage + 1) * itemsPerPage
+  );
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleMonthChange = (e) => {
-    const newMonth = e.target.value;
-    const idx = months.indexOf(newMonth);
-    setCurrentDate(new Date(year, idx, 1));
-    setFormData(prev => ({ ...prev, selectedMonth: newMonth, selectedDay: '' }));
+  const handleSubmit = () => {
+    if (!formData.purpose || !formData.requestingParty || !formData.officer) {
+      alert("Please fill in the Purpose, Requesting Party, and Hearing Officer!");
+      return;
+    }
+    const newHearing = {
+      id: Date.now(),
+      title: formData.purpose,
+      time: formData.availableTime,
+      day: formData.selectedDay,
+      officer: formData.officer,
+      date: `${formData.selectedMonth.substring(0, 3).toUpperCase()} ${formData.selectedDay}`,
+      dow: new Date(2026, months.indexOf(formData.selectedMonth), formData.selectedDay)
+            .toLocaleDateString('en-US', { weekday: 'long' })
+    };
+    const updated = [newHearing, ...allHearings];
+    localStorage.setItem('hearings', JSON.stringify(updated));
+    setAllHearings(updated);
+    alert("Schedule Created Successfully!");
+    setFormData(prev => ({ ...prev, purpose: '', otherIssues: '', officer: '' }));
   };
 
-  const getDayStatus = (day) => {
-    const booked = [2, 3, 10, 16, 19, 26];
-    const available = [5, 17, 18, 23, 24];
-    const limited = [12, 25];
-    if (booked.includes(day)) return "booked";
-    if (available.includes(day)) return "available";
-    if (limited.includes(day)) return "limited";
-    return "";
+  const changeMonth = (offset) => {
+    setCurrentDate(new Date(year, month + offset, 1));
+    setHearingPage(0);
   };
 
-  if (showLog) {
-    return <ActivityLog onBack={() => setShowLog(false)} onRemark={(id) => navigate('/remarks')} />;
-  }
+  if (showLog) return <ActivityLog onBack={() => setShowLog(false)} onRemark={() => navigate('/remarks')} />;
 
   return (
     <div className="schedule-page-wrapper">
       <div className="red-bg-accent"></div>
-
       <div className="schedule-container">
-        {/* LEFT COLUMN: FORM */}
+
+        {/* LEFT COLUMN: CREATE SCHEDULE FORM */}
         <div className="create-card">
-          <h2 className="section-title">Create New Schedule</h2>
-          
+          <div className="title-with-underline">
+            <h2 className="section-title">Create New Schedule</h2>
+          </div>
+
           <div className="input-group">
             <label>Purpose:</label>
             <input type="text" name="purpose" value={formData.purpose} onChange={handleInputChange} className="sched-input" placeholder="Reason" />
@@ -99,67 +127,109 @@ const Schedule = () => {
             </div>
           </div>
 
-          <div className="input-group">
-            <label>Available Month & Day:</label>
-            <div className="date-dropdown-row">
-              <div className="select-wrapper flex-1">
-                <select name="selectedDay" value={formData.selectedDay} onChange={handleInputChange} className="sched-input birth-style">
-                  <option value="">DD</option>
-                  {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(d => (
-                    <option key={d} value={d}>{d < 10 ? `0${d}` : d}</option>
-                  ))}
-                </select>
-                <FaChevronDown className="select-icon" />
-              </div>
-              <div className="select-wrapper flex-1">
-                <select name="selectedMonth" value={formData.selectedMonth} onChange={handleMonthChange} className="sched-input birth-style">
-                  {months.map(m => <option key={m} value={m}>{m.substring(0, 3)}</option>)}
-                </select>
-                <FaChevronDown className="select-icon" />
+          <div className="row-group">
+            <div className="input-group">
+              <label>Available day:</label>
+              <div className="date-dropdown-row">
+                <div className="select-wrapper">
+                  <select name="selectedDay" value={formData.selectedDay} onChange={handleInputChange} className="sched-input">
+                    {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(d => <option key={d} value={d}>{d}</option>)}
+                  </select>
+                  <FaChevronDown className="select-icon" />
+                </div>
+                <div className="select-wrapper">
+                  <select name="selectedMonth" value={formData.selectedMonth} onChange={(e) => {
+                    handleInputChange(e);
+                    setCurrentDate(new Date(year, months.indexOf(e.target.value), 1));
+                    setHearingPage(0);
+                  }} className="sched-input">
+                    {months.map(m => <option key={m} value={m}>{m}</option>)}
+                  </select>
+                  <FaChevronDown className="select-icon" />
+                </div>
               </div>
             </div>
-          </div>
-
-          <div className="input-group">
-            <label>Available time:</label>
-            <div className="select-wrapper">
-              <select name="availableTime" value={formData.availableTime} onChange={handleInputChange} className="sched-input">
-                <option>Select Time Slot</option>
-                <option>8:30 am to 9:00 am</option>
-                <option>9:00 am to 9:30 am</option>
-              </select>
-              <FaChevronDown className="select-icon" />
+            <div className="input-group">
+              <label>Available time:</label>
+              <div className="select-wrapper">
+                <select name="availableTime" value={formData.availableTime} onChange={handleInputChange} className="sched-input">
+                 <option>Select</option>
+                  <option>8:30 am to 9:00 am</option>
+                  <option>9:00 am to 9:30 am</option>
+                  <option>9:30 am to 10:00 am</option>
+                  <option>10:00 am to 10:30 am</option>
+                  <option>10:30 am to 11:00 am</option>
+                  <option>11:00 am to 11:30 am</option>
+                  <option>11:30 am to 12:00 pm</option>
+                  <option>1:00 pm to 1:30 pm</option>
+                  <option>1:30 pm to 2:00 pm</option>
+                  <option>2:00 pm to 2:30 pm</option>
+                  <option>2:30 pm to 3:00 pm</option>
+                  <option>3:00 pm to 3:30 pm</option>
+                  <option>3:30 pm to 4:00 pm</option>
+                  <option>4:00 pm to 4:30 pm</option>
+                  <option>4:30 pm to 5:00 pm</option>
+                </select>
+                <FaChevronDown className="select-icon" />
+              </div>
             </div>
           </div>
 
           <label className="group-label">Claims/Issues</label>
           <div className="row-group">
-            <div className="input-group flex-1">
-              <label className="sub-label">Labor Standards</label>
+            <div className="input-group">
+              <label>Labor Standards Violations</label>
               <div className="select-wrapper">
                 <select name="laborViolation" value={formData.laborViolation} onChange={handleInputChange} className="sched-input">
-                  <option>Select Issue</option>
+                  <option>Select</option>
                   <option>Minimum Wage</option>
+                  <option>COLA</option>
+                  <option>Night Shift Differential</option>
+                  <option>Overtime Pay</option>
+                  <option>Holiday Pay</option>
+                  <option>13th Month Pay</option>
+                  <option>Service Charge</option>
+                  <option>Premium Pay for Rest Day</option>
+                  <option>Premium Pay for Special Day</option>
+                  <option>Service Incentive Leave</option>
+                  <option>Maternity Leave</option>
+                  <option>Paternity Leave</option>
+                  <option>Parental Leave for Solo Parent</option>
+                  <option>Leave for Victims of VAWC</option>
+                  <option>Special Leave for Women</option>
                 </select>
                 <FaChevronDown className="select-icon" />
               </div>
             </div>
-            <div className="input-group flex-1">
-              <label className="sub-label">Other Issues:</label>
+            <div className="input-group">
+              <label>Other Issues:</label>
               <input type="text" name="otherIssues" value={formData.otherIssues} onChange={handleInputChange} className="sched-input" placeholder="Type here" />
             </div>
           </div>
 
-          <div className="input-group">
-            <label className="sub-label">Hearing Officer</label>
-            <input type="text" name="officer" value={formData.officer} onChange={handleInputChange} className="sched-input" placeholder="Enter Officer Name" />
+          <div className="input-group" style={{ marginTop: '15px' }}>
+            <label>Available Hearing Officer</label>
+            <div className="select-wrapper">
+              <select 
+                name="officer" 
+                value={formData.officer} 
+                onChange={handleInputChange} 
+                className="sched-input"
+              >
+                <option value="">Select Officer Name</option>
+                {officerList.map((name, index) => (
+                  <option key={index} value={name}>{name}</option>
+                ))}
+              </select>
+              <FaChevronDown className="select-icon" />
+            </div>
           </div>
 
-          <button className="create-btn" onClick={() => alert("Schedule Created!")}>Create Schedule</button>
+          <button className="create-btn" onClick={handleSubmit}>Create Schedule</button>
         </div>
 
-        {/* RIGHT COLUMN: CALENDAR DISPLAY */}
-        <div className="calendar-card">
+        {/* RIGHT COLUMN: CALENDAR & RECENT HEARINGS */}
+        <div className="calendar-card fixed-calendar-card">
           <div className="legend-bar">
             <span><span className="dot available-dot"></span> Available</span>
             <span><span className="dot limited-dot"></span> Limited</span>
@@ -168,62 +238,62 @@ const Schedule = () => {
 
           <div className="calendar-main-section">
             <div className="calendar-header">
-              <FaChevronLeft className="nav-arrow" onClick={() => setCurrentDate(new Date(year, month - 1, 1))} />
+              <FaChevronLeft onClick={() => changeMonth(-1)} style={{ cursor: 'pointer' }} />
               <h3>{monthName} {year}</h3>
-              <FaChevronRight className="nav-arrow" onClick={() => setCurrentDate(new Date(year, month + 1, 1))} />
+              <FaChevronRight onClick={() => changeMonth(1)} style={{ cursor: 'pointer' }} />
             </div>
-
-            <div className="calendar-grid-container">
-              <div className="calendar-grid">
-                {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(d => <div key={d} className="day-name">{d}</div>)}
-                {Array.from({ length: startingOffset }).map((_, i) => <div key={`empty-${i}`} className="day-num empty"></div>)}
-                {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(day => (
-                  <div key={day} className={`day-num display-only ${getDayStatus(day)}`}>{day}</div>
-                ))}
-              </div>
+            <div className="calendar-grid">
+              {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(d => <div key={d} className="dow-label">{d}</div>)}
+              {Array.from({ length: startingOffset }).map((_, i) => <div key={i} className="empty-day"></div>)}
+              {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(day => (
+                <div key={day} className="day-num">{day}</div>
+              ))}
             </div>
           </div>
 
-          {/* PAGINATED RECENT HEARINGS */}
           <div className="recent-section">
             <div className="recent-header">
-              <h2 className="section-title small">Recent Hearings</h2>
-              {allHearings.length > 0 && (
+              <div className="title-with-underline">
+                <h4 className="section-title small">Recent Hearings</h4>
+              </div>
+              
+              {hearingsForSelectedMonth.length > itemsPerPage && (
                 <div className="pagination-controls">
-                  <FaChevronLeft className={`pag-arrow ${hearingPage === 0 ? 'disabled' : ''}`} onClick={() => hearingPage > 0 && setHearingPage(hearingPage - 1)} />
+                  <FaChevronLeft onClick={() => setHearingPage(Math.max(0, hearingPage - 1))} className={hearingPage === 0 ? 'disabled' : ''} />
                   <div className="pagination-dots">
                     {Array.from({ length: totalPages }).map((_, i) => (
-                      <span key={i} className={`dot-item ${hearingPage === i ? 'active' : ''}`} />
+                      <span key={i} className={`dot-item ${hearingPage === i ? 'active' : ''}`} onClick={() => setHearingPage(i)} />
                     ))}
                   </div>
-                  <FaChevronRight className={`pag-arrow ${hearingPage === totalPages - 1 ? 'disabled' : ''}`} onClick={() => hearingPage < totalPages - 1 && setHearingPage(hearingPage + 1)} />
+                  <FaChevronRight onClick={() => setHearingPage(Math.min(totalPages - 1, hearingPage + 1))} className={hearingPage === totalPages - 1 ? 'disabled' : ''} />
                 </div>
               )}
             </div>
 
-            <div className="hearings-list">
-              {allHearings.length > 0 ? (
-                currentHearings.map((h) => (
-                  <div key={h.id} className="hearing-item">
-                    <div className="hearing-date-box">{h.dow}<br/><span>{h.day}</span></div>
-                    <div className="hearing-info">
-                      <div className="hearing-title">{h.title}</div>
-                      <div className="hearing-time"><FaClock /> {h.time}</div>
+            <div className="recent-hearings-list">
+              {currentRecentPage.length > 0 ? (
+                currentRecentPage.map((h) => (
+                  <div key={h.id} className="recent-hearing-card-new">
+                    <div className="rh-date-col">
+                      <span className="rh-day-name">{h.dow?.substring(0, 3)}</span>
+                      <span className="rh-day-number">{h.day}</span>
                     </div>
-                    <button className="view-btn" onClick={() => setShowLog(true)}>View</button>
+                    <div className="rh-content-col">
+                      <div className="rh-main-info">
+                        <h4>{h.title}</h4>
+                        <div className="rh-details-row">
+                          <span className="rh-time-text">{h.time}</span>
+                          <span className="rh-duration-badge"><FaClock className="clock-icon-small" /> 30 min</span>
+                        </div>
+                      </div>
+                      <button className="rh-view-btn" onClick={() => setShowLog(true)}>View</button>
+                    </div>
                   </div>
                 ))
               ) : (
-                [1, 2, 3].map((i) => (
-                  <div key={i} className="hearing-item empty-state">
-                    <div className="hearing-date-box">--<br/><span>00</span></div>
-                    <div className="hearing-info">
-                      <div className="hearing-title color-muted">No Recent Hearings</div>
-                      <div className="hearing-time color-muted"><FaClock /> --:--</div>
-                    </div>
-                    <button className="view-btn disabled" disabled>View</button>
-                  </div>
-                ))
+                <div className="no-hearings-placeholder">
+                  <p className="no-hearings-msg">No recent hearings</p>
+                </div>
               )}
             </div>
           </div>

@@ -1,0 +1,828 @@
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700;800&display=swap');
+
+:root {
+    /* Color Variables */
+    --sidebar-navy: #051630;
+    --main-bg: #ccd2db;
+    --card-bg: #e4e7eb;
+    --yellow: #f5bc00;
+    --red-accent: #c41e1e;
+    --text-dark: #051630;
+    --text-pale: #9aa3b3;
+    --nav-hover: rgba(255, 255, 255, 0.08);
+    --edit-blue: #3498db;
+    --unread-dot-blue: #3498db;
+    --white: #ffffff;
+    --light-gray: #f5f7fa;
+    --border-color: #e0e4e9;
+    --success-green: #2ecc71;
+    --warning-orange: #f39c12;
+    --info-blue: #3498db;
+}
+
+* {
+    box-sizing: border-box;
+    font-family: 'Poppins', sans-serif;
+}
+
+body {
+    margin: 0;
+    background-color: white;
+    overflow-x: hidden;
+    font-family: 'Poppins', sans-serif;
+}
+
+/* App Layout */
+.app-container {
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    width: 100%;
+    overflow-x: hidden;
+}
+
+.layout-body {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
+/* --- OVERLAY EFFECT --- */
+.page-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(5px);
+    z-index: 800;
+    transition: all 0.3s ease;
+}
+
+.active-trigger {
+    z-index: 801 !important;
+}
+
+/* --- MAIN CONTENT --- */
+.main-wrapper {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.content-area {
+    flex: 1;
+    background-color: var(--main-bg);
+    padding: 30px 45px;
+    overflow-y: auto;
+}
+
+/* --- DASHBOARD GRID --- */
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: 1.2fr 1fr;
+    gap: 40px;
+    align-items: flex-start;
+    width: 100%;
+    max-width: 100%;
+}
+
+.right-col {
+    min-width: 0;
+    width: 100%;
+}
+
+/* Action Buttons */
+.action-row {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 40px;
+}
+
+.btn-card {
+    width: 145px;
+    height: 110px;
+    border-radius: 25px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+    position: relative;
+    cursor: pointer;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.btn-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 15px 25px rgba(0,0,0,0.15);
+}
+
+.btn-card.yellow {
+    background-color: var(--yellow);
+    color: white;
+}
+
+.btn-card.navy {
+    background-color: var(--sidebar-navy);
+    color: white;
+}
+
+.btn-card p {
+    margin: 0;
+    font-weight: 700;
+    font-size: 0.85rem;
+}
+
+.custom-icon {
+    width: 40px;
+    height: 40px;
+    margin-bottom: 8px;
+}
+
+.badge {
+    position: absolute;
+    top: 15px;
+    right: 40px;
+    background: #ff3b30;
+    color: white;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    font-size: 0.7rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    border: 2px solid var(--sidebar-navy);
+}
+
+/* Section Titles */
+.section-title {
+    color: var(--text-dark);
+    font-size: 1.35rem;
+    margin: 0 0 20px 0;
+    font-weight: 700;
+    text-align: left;
+    padding-left: 0;
+    letter-spacing: -0.02em;
+    position: relative;
+}
+
+.section-title::after {
+    content: '';
+    display: block;
+    width: 50px;
+    height: 4px;
+    background: var(--yellow);
+    margin-top: 8px;
+    border-radius: 4px;
+}
+
+/* Report Summary Grid */
+.report-summary-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 15px;
+    width: 100%;
+    max-width: 340px;
+}
+
+.report-column {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.report-box {
+    background: var(--white);
+    padding: 18px 20px;
+    border-radius: 20px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
+    width: 100%;
+    text-align: left;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    transition: all 0.3s ease;
+    border: 1px solid transparent;
+}
+
+.report-box:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 25px rgba(0, 0, 0, 0.1);
+    background-color: #ffffff;
+}
+
+.report-box.active-box {
+    border: 2px solid var(--yellow);
+    background: linear-gradient(135deg, #ffffff 0%, #fff9e6 100%);
+    position: relative;
+    overflow: hidden;
+}
+
+.report-box.active-box::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 40px;
+    height: 40px;
+    background: var(--yellow);
+    opacity: 0.1;
+    border-radius: 0 20px 0 20px;
+}
+
+.count {
+    display: block;
+    font-size: 2.2rem;
+    font-weight: 800;
+    color: var(--text-dark);
+    margin: 0 0 4px 0;
+    padding: 0;
+    text-align: left;
+    line-height: 1.1;
+    letter-spacing: -0.02em;
+}
+
+.month {
+    font-size: 0.9rem;
+    color: #001D56;
+    font-weight: 700;
+    margin: 0;
+    padding: 0;
+    text-align: left;
+    display: block;
+    line-height: 1.3;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* Meeting List */
+.meeting-list {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.meeting-card {
+    background: var(--white);
+    border-radius: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 18px 22px;
+    position: relative;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.04);
+    transition: all 0.3s ease;
+    width: 100%;
+    max-width: 100%;
+    border: 1px solid var(--border-color);
+    overflow: hidden;
+}
+
+.meeting-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
+    border-color: var(--yellow);
+}
+
+.red-strip {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 4px;
+    background: linear-gradient(90deg, var(--red-accent), #ff6b6b);
+    border-radius: 16px 16px 0 0;
+}
+
+.m-info {
+    flex: 1;
+}
+
+.m-info h4 {
+    margin: 0 0 6px 0;
+    color: var(--text-dark);
+    font-size: 1.1rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+}
+
+.m-info p {
+    margin: 0;
+    font-size: 0.85rem;
+    color: var(--text-pale);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.m-info p::before {
+    content: '🕒';
+    font-size: 0.8rem;
+    opacity: 0.7;
+}
+
+.m-date {
+    text-align: right;
+    color: var(--text-dark);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: rgba(245, 188, 0, 0.1);
+    padding: 8px 15px;
+    border-radius: 40px;
+    width: 114px;
+    justify-content: center;
+}
+
+.m-month {
+    font-size: 1rem;
+    font-weight: 600;
+    color: #001D56;
+    letter-spacing: 0.5px;
+}
+
+.m-day {
+    color: var(--yellow);
+    font-size: 1.8rem;
+    font-weight: 800;
+    line-height: 1;
+}
+
+/* --- NOTIFICATION DROPDOWN --- */
+.photo-notif-dropdown {
+    position: absolute;
+    top: 90px;
+    left: 20px;
+    width: 350px;
+    background: #f0f2f5;
+    border-radius: 18px;
+    box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+    z-index: 1000;
+    overflow: hidden;
+    cursor: default;
+    text-align: left;
+}
+
+.photo-notif-header {
+    padding: 15px 18px 5px;
+}
+
+.photo-notif-header h3 {
+    margin: 0;
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: #051630;
+}
+
+.photo-notif-scroll {
+    max-height: 380px;
+    overflow-y: auto;
+}
+
+.notif-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 18px;
+    font-weight: 700;
+    font-size: 0.9rem;
+    color: #333;
+}
+
+.see-all-btn {
+    background: none;
+    border: none;
+    color: #3498db;
+    font-size: 0.75rem;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.notif-item {
+    display: flex;
+    background: white;
+    margin-bottom: 2px;
+    padding: 12px 18px;
+    transition: all 0.2s ease;
+    cursor: pointer;
+    align-items: center;
+    position: relative;
+}
+
+.notif-item:hover {
+    background: #f8fafc;
+}
+
+.notif-item.unread {
+    background: #ffffff;
+}
+
+.notif-item.unread .notif-content p {
+    color: var(--text-dark);
+    font-weight: 600;
+}
+
+.notif-item.read .notif-content p {
+    color: var(--text-pale);
+    font-weight: 400;
+}
+
+.status-bar {
+    width: 6px;
+    height: 35px;
+    border-radius: 3px;
+    margin-right: 12px;
+    flex-shrink: 0;
+}
+
+.status-bar.yellow {
+    background-color: var(--yellow);
+}
+
+.status-bar.green {
+    background-color: #2ecc71;
+}
+
+.notif-content {
+    flex: 1;
+}
+
+.notif-content p {
+    margin: 0;
+    font-size: 0.75rem;
+    line-height: 1.3;
+}
+
+.notif-time {
+    font-size: 0.7rem;
+    color: #3498db;
+    font-weight: 500;
+    display: block;
+    margin-top: 4px;
+}
+
+.notif-time.time-pale {
+    color: #bdc3d0;
+}
+
+.unread-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: var(--unread-dot-blue);
+    margin-left: 12px;
+    flex-shrink: 0;
+}
+
+/* Modal Styles */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    backdrop-filter: blur(5px);
+}
+
+.modal {
+    background: var(--white);
+    padding: 30px;
+    border-radius: 25px;
+    text-align: center;
+    width: 350px;
+    animation: pop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    box-shadow: 0 30px 50px rgba(0, 0, 0, 0.3);
+}
+
+.modal h3 {
+    margin: 0 0 20px;
+    color: var(--text-dark);
+    font-size: 1.3rem;
+    font-weight: 700;
+}
+
+.modal p {
+    font-size: 0.9rem;
+    margin-bottom: 20px;
+    color: var(--text-pale);
+}
+
+.modal button {
+    padding: 10px 30px;
+    border: none;
+    background: linear-gradient(135deg, #c40000, #a00000);
+    color: white;
+    border-radius: 30px;
+    cursor: pointer;
+    font-family: 'Poppins', sans-serif;
+    font-weight: 600;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+    box-shadow: 0 8px 15px rgba(196, 0, 0, 0.2);
+}
+
+.modal button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 12px 25px rgba(196, 0, 0, 0.3);
+}
+
+@keyframes pop {
+    0% {
+        transform: scale(0.8);
+        opacity: 0;
+    }
+    50% {
+        transform: scale(1.05);
+    }
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+/* --- RESPONSIVE --- */
+@media (max-width: 1024px) {
+    .dashboard-grid {
+        grid-template-columns: 1fr;
+        gap: 40px;
+    }
+    
+    .report-summary-grid {
+        max-width: 100%;
+    }
+}
+
+@media (max-width: 768px) {
+    .content-area {
+        padding: 20px;
+    }
+}
+
+@media (max-width: 480px) {
+    .photo-notif-dropdown {
+        width: calc(100vw - 40px);
+        left: 20px;
+        right: 20px;
+        top: 80px;
+    }
+    
+    .notif-item {
+        padding: 12px 15px;
+    }
+    
+    .notif-section-header {
+        padding: 12px 15px 6px;
+    }
+}
+
+@media (max-width: 360px) {
+    .photo-notif-dropdown {
+        width: calc(100vw - 30px);
+        left: 15px;
+        right: 15px;
+    }
+    
+    .notif-content p {
+        font-size: 0.7rem;
+    }
+    
+    .notif-time {
+        font-size: 0.65rem;
+    }
+}
+
+/* Scrollbar Styles */
+.photo-notif-scroll::-webkit-scrollbar {
+    width: 8px;
+}
+
+.photo-notif-scroll::-webkit-scrollbar-track {
+    background: var(--light-gray);
+    border-radius: 10px;
+}
+
+.photo-notif-scroll::-webkit-scrollbar-thumb {
+    background: linear-gradient(180deg, #aaa, #888);
+    border-radius: 10px;
+    border: 2px solid var(--light-gray);
+}
+
+.photo-notif-scroll::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(180deg, #999, #666);
+}
+
+/* Utility Classes */
+.text-gradient {
+    background: linear-gradient(135deg, var(--yellow), #f7dc6f);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.card-glow {
+    position: relative;
+}
+
+.card-glow::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border-radius: inherit;
+    box-shadow: 0 0 0 2px rgba(245, 188, 0, 0.1);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+}
+
+.card-glow:hover::after {
+    opacity: 1;
+}
+
+/* --- Loading State --- */
+.loading-screen {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  height: 80vh;
+  color: #1e293b;
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid #f3f3f3;
+  border-top: 4px solid #cc0000; /* Matching your red theme */
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-bottom: 15px;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* --- Empty States --- */
+.no-data {
+  text-align: center;
+  padding: 40px 20px;
+  color: #94a3b8;
+  font-style: italic;
+  background: #f8fafc;
+  border: 2px dashed #e2e8f0;
+  border-radius: 15px;
+}
+
+/* --- Smooth Transitions --- */
+.layout-body {
+  animation: fadeIn 0.5s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* --- Badge Pulse (Optional for Unread Notifs) --- */
+.badge {
+  background: #ff0000;
+  color: white;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: bold;
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  box-shadow: 0 0 0 rgba(255, 0, 0, 0.4);
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0.7); }
+  70% { box-shadow: 0 0 0 10px rgba(255, 0, 0, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 0, 0, 0); }
+}
+
+/* Styling for the 'None' text in the dropdown */
+.none-state {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 40px 20px;
+  color: #94a3b8; /* Subtle gray color */
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+/* Styling for empty meetings state */
+.empty-meetings {
+  background: rgba(255, 255, 255, 0.5);
+  border: 2px dashed #e2e8f0;
+  border-radius: 12px;
+  padding: 30px;
+  text-align: center;
+  color: #64748b;
+  font-style: italic;
+  margin-top: 10px;
+}
+
+/* Ensure the scroll area doesn't look weird when empty */
+.photo-notif-scroll:has(.none-state) {
+  overflow: hidden;
+}
+
+/* Container for the arrows and the dots */
+.pagination-controls-bottom {
+  display: flex;
+  flex-direction: row; /* Forces horizontal alignment */
+  justify-content: center;
+  align-items: center;
+  gap: 15px; /* Space between arrows and dots */
+  margin-top: 20px;
+  width: 100%;
+}
+
+/* Container specifically for the dots */
+.pagination-dots {
+  display: flex;
+  flex-direction: row; /* Ensures dots sit side-by-side */
+  gap: 8px; /* Space between each dot */
+  align-items: center;
+}
+
+/* Ensure arrows are treated as inline-flex items */
+.nav-arrow {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  font-size: 1.2rem;
+  color: #555;
+}
+
+.nav-arrow.disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* The individual dots */
+.dot-item {
+  width: 10px;
+  height: 10px;
+  background-color: #878787;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.dot-item.active {
+  background-color: #d32f2f; /* Your theme red */
+  width: 25px; /* Makes the active dot a horizontal pill shape */
+  border-radius: 10px;
+}
+
+/* This ensures the container doesn't shrink when there are fewer than 5 items */
+.meeting-list {
+  min-height: 500px; /* Adjust this value based on the actual height of 5 cards */
+  display: flex;
+  flex-direction: column;
+  gap: 10px; /* Matches the spacing between your cards */
+}
+
+/* Ensure the pagination footer stays at the very bottom of the right column */
+.right-col {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.pagination-controls-bottom {
+  display: flex;
+  flex-direction: row; 
+  justify-content: center;
+  align-items: center;
+  gap: 15px;
+  margin-top: auto; /* Pushes the pagination to the bottom of the flex container */
+  padding-top: 20px;
+  width: 100%;
+}
+
+.pagination-dots {
+  display: flex;
+  flex-direction: row; 
+  gap: 8px;
+  align-items: center;
+}
