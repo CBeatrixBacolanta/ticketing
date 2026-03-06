@@ -1,15 +1,13 @@
 import React from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { FaUserEdit, FaBars, FaTimes, FaSignOutAlt } from "react-icons/fa";
+import { FaBars, FaTimes } from "react-icons/fa";
 
 const SideBar = ({ user, isOpen, setIsOpen, onLogout }) => { 
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Helper function to check if a path is active
   const isActive = (path) => location.pathname === path;
 
-  // Handle Logout with confirmation
   const handleLogoutClick = () => {
     if (window.confirm("Are you sure you want to logout?")) {
       onLogout(); 
@@ -43,11 +41,10 @@ const SideBar = ({ user, isOpen, setIsOpen, onLogout }) => {
           gap: 10px; 
           margin-bottom: 40px; 
           width: 100%;
-          padding-right: 25px;
         }
 
         .menu-toggle { background: none; border: none; color: white; cursor: pointer; display: flex; align-items: center; }
-        .open-btn { position: absolute; top: 0; right: 0; font-size: 1.2rem; }
+        .open-btn { position: absolute; top: 0; right: -5px; font-size: 1.2rem; }
         
         .closed-btn {
           position: fixed; top: 20px; left: 20px; z-index: 1100;
@@ -56,7 +53,7 @@ const SideBar = ({ user, isOpen, setIsOpen, onLogout }) => {
           display: ${isOpen ? "none" : "block"};
         }
 
-        .gov-logo { width: 45px; height: 45px; margin-top: 5px; }
+        .gov-logo { width: 45px; height: 45px; margin-top: 5px; object-fit: contain; }
         .gov-text { text-align: left; }
         .gov-text p { font-size: 8px; margin: 0; text-transform: uppercase; color: #cbd5e0; }
         .gov-text h4 { font-size: 10px; margin: 2px 0; font-weight: bold; line-height: 1.2; }
@@ -67,25 +64,24 @@ const SideBar = ({ user, isOpen, setIsOpen, onLogout }) => {
         .ad-name { font-size: 16px; font-weight: 800; margin: 0; text-align: center; padding: 0 5px; color: white; }
         .ad-email { font-size: 12px; color: #cbd5e0; margin-top: 2px; opacity: 0.9; word-break: break-all; text-align: center; }
         
-        .edit-profile-btn { background: none; border: none; color: #4ba2f3; font-size: 13px; cursor: pointer; display: flex; align-items: center; gap: 5px; margin-top: 12px; }
+        .edit-profile-btn { background: none; border: none; color: #4ba2f3; font-size: 13px; cursor: pointer; margin-top: 12px; }
 
-        nav { width: 100%; display: flex; flex-direction: column; gap: 5px; }
+        nav { width: 100%; display: flex; flex-direction: column; gap: 8px; }
+        
+        /* UPDATED: NO ICONS, FULLY CENTERED TEXT */
         .nav-link { 
           color: white; 
           text-decoration: none; 
-          padding: 12px; 
+          padding: 14px; 
           border-radius: 8px; 
-          font-size: 14px; 
+          font-size: 16px; 
           border: none; 
           background: none; 
           cursor: pointer;
           transition: 0.2s; 
           width: 100%; 
-          text-align: center;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 10px;
+          display: block; /* Allows text-align to work */
+          text-align: center; /* Centers the text horizontally */
         }
         
         .nav-link:hover, .nav-link.active { 
@@ -96,21 +92,20 @@ const SideBar = ({ user, isOpen, setIsOpen, onLogout }) => {
 
         .logout-link {
           color: #ff4d4d !important;
-          margin-top: 20px;
+          font-weight: 600;
         }
         .logout-link:hover {
           background: rgba(255, 77, 77, 0.1) !important;
         }
       `}</style>
 
-      {/* Button to show sidebar when closed */}
       <button className="closed-btn" onClick={() => setIsOpen(true)}>
         <FaBars />
       </button>
 
       <aside className="sidebar-container">
         <div className="gov-header">
-          <img src={require("../assets/images/logo.png")} alt="Logo" className="gov-logo" />
+          <img src={require("../assets/images/logo.png")} alt="Logo" className="gov-logo" onError={(e) => e.target.style.display='none'}/>
           <div className="gov-text">
             <p>Republic of the Philippines</p>
             <h4>Department of Labor and Employment</h4>
@@ -123,7 +118,6 @@ const SideBar = ({ user, isOpen, setIsOpen, onLogout }) => {
         </div>
 
         <div className="profile-section">
-          {/* Profile Picture Fallback */}
           {user?.profilePic ? (
              <img src={user.profilePic} className="profile-img" alt="User" />
           ) : (
@@ -131,50 +125,17 @@ const SideBar = ({ user, isOpen, setIsOpen, onLogout }) => {
               <svg viewBox="0 0 24 24" fill="#718096" width="50" height="50"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" /></svg>
             </div>
           )}
-          
-          {/* NAME DISPLAY: Defaults to "User" if names are empty */}
-          <h4 className="ad-name">
-            {user?.firstName || user?.lastName 
-              ? `${user.firstName} ${user.middleInitial ? `${user.middleInitial}. ` : ""}${user.lastName}` 
-              : "User"}
-          </h4>
-
-          {/* EMAIL DISPLAY: Defaults to email@email.com */}
+          <h4 className="ad-name">{user?.firstName || "User"}</h4>
           <p className="ad-email">{user?.email || "email@email.com"}</p>
-          
-          <button 
-            className={`edit-profile-btn ${isActive('/edit-profile') ? 'active' : ''}`} 
-            onClick={() => navigate("/edit-profile")}
-          >
-            <FaUserEdit /> Edit Profile
-          </button>
+          <button className="edit-profile-btn" onClick={() => navigate("/edit-profile")}>Edit Profile</button>
         </div>
 
         <nav>
-          <button 
-            className={`nav-link ${isActive('/') || isActive('/dashboard') ? 'active' : ''}`} 
-            onClick={() => navigate('/dashboard')}
-          >
-            Dashboard
-          </button>
-
-          <button 
-            className={`nav-link ${isActive('/reports') ? 'active' : ''}`} 
-            onClick={() => navigate('/reports')}
-          >
-            Report
-          </button>
-
-          <button 
-            className={`nav-link ${isActive('/settings') ? 'active' : ''}`} 
-            onClick={() => navigate('/settings')}
-          >
-            Settings
-          </button>
-          
-          <button className="nav-link logout-link" onClick={handleLogoutClick}>
-            <FaSignOutAlt /> Logout
-          </button>
+          <button className={`nav-link ${isActive('/dashboard') ? 'active' : ''}`} onClick={() => navigate('/dashboard')}>Dashboard</button>
+          <button className={`nav-link ${isActive('/schedule') ? 'active' : ''}`} onClick={() => navigate('/schedule')}>Schedule</button>
+          <button className={`nav-link ${isActive('/reports') ? 'active' : ''}`} onClick={() => navigate('/reports')}>Report</button>
+          <button className={`nav-link ${isActive('/settings') ? 'active' : ''}`} onClick={() => navigate('/settings')}>Settings</button>
+          <button className="nav-link logout-link" onClick={handleLogoutClick}>Logout</button>
         </nav>
       </aside>
     </>

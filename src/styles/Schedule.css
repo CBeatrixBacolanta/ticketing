@@ -22,7 +22,7 @@
   position: relative;
   z-index: 2;
   display: flex;
-  align-items: flex-start; /* Keeps cards at natural/set heights independently */
+  align-items: flex-start; 
   gap: 30px;
   padding: 40px 60px;
   max-width: 1400px;
@@ -38,10 +38,51 @@
   box-shadow: 0 10px 30px rgba(0,0,0,0.08);
 }
 
-/* --- RIGHT CARD: THE LONG CALENDAR BOX --- */
+/* --- BUTTON GROUP --- */
+.sched-button-group {
+  display: flex;
+  align-items: stretch; 
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.create-btn { 
+  flex: 2;
+  background: #cc0000; 
+  color: white; 
+  border: none; 
+  padding: 14px; 
+  border-radius: 12px; 
+  font-size: 16px;
+  font-weight: 700; 
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.view-log-btn {
+  flex: 1;
+  background-color: #333333;
+  color: white;
+  border: none;
+  border-radius: 12px;
+  padding: 14px; 
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: background 0.2s ease;
+}
+
+.create-btn:hover { background: #a30000; }
+.view-log-btn:hover { background-color: #1a1a1a; }
+
+/* --- RIGHT CARD: CALENDAR --- */
 .calendar-card.fixed-calendar-card {
   width: 54%;
-  min-height: 800px; /* Forces this box to be longer than the left one */
+  min-height: 745px; 
   background: rgba(255, 255, 255, 0.95);
   border-radius: 25px;
   padding: 30px;
@@ -59,7 +100,7 @@
 
 .section-title.small { font-size: 18px; }
 
-/* --- FORM ELEMENTS & DROPDOWN FIXES --- */
+/* --- FORM ELEMENTS & INPUTS --- */
 .row-group { display: flex; gap: 15px; width: 100%; margin-bottom: 10px; }
 .input-group { flex: 1; display: flex; flex-direction: column; }
 
@@ -70,22 +111,31 @@
   color: #4a5568;
 }
 
+.sched-input {
+  width: 100%;
+  height: 45px;
+  padding: 0 12px; 
+  border: 1.5px solid #e2e8f0;
+  background: white;
+  border-radius: 10px;
+  font-size: 12px;
+  transition: border-color 0.2s;
+}
+
+.sched-input:focus {
+  border-color: #cc0000;
+  outline: none;
+}
+
+/* --- DATE DROPDOWN SPECIFICS --- */
 .date-dropdown-row { 
   display: flex; 
   gap: 10px; 
   width: 100%; 
 }
 
-/* Day dropdown - narrow and fixed */
-.date-dropdown-row .select-wrapper:first-child {
-  flex: 0 0 75px; 
-}
-
-/* Month dropdown - expands to fit "September" */
-.date-dropdown-row .select-wrapper:last-child {
-  flex: 1;
-  min-width: 135px; 
-}
+.date-dropdown-row .select-wrapper:first-child { flex: 0 0 75px; }
+.date-dropdown-row .select-wrapper:last-child { flex: 1; min-width: 135px; }
 
 .select-wrapper { 
   position: relative; 
@@ -93,17 +143,10 @@
   align-items: center;
 }
 
-.sched-input {
-  width: 100%;
-  height: 45px;
-  padding: 0 35px 0 12px; /* Extra right padding so text doesn't hit the arrow */
-  border: 1.5px solid #e2e8f0;
-  background: white;
-  border-radius: 10px;
-  font-size: 11px;
+.select-wrapper .sched-input {
+  padding-right: 35px;
   appearance: none;
   cursor: pointer;
-  white-space: nowrap;
 }
 
 .select-icon { 
@@ -114,20 +157,39 @@
   font-size: 12px;
 }
 
-.create-btn { 
-  background: #cc0000; 
-  color: white; 
-  border: none; 
-  padding: 14px; 
-  width: 100%; 
-  border-radius: 12px; 
-  font-size: 16px;
-  font-weight: 700; 
-  cursor: pointer; 
-  margin-top: 20px;
+/* --- TIME PICKER (NEW SECTION) --- */
+.time-picker-row {
+  display: flex;
+  gap: 10px;
+  width: 100%;
 }
 
-/* --- CALENDAR SECTION --- */
+.time-box {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.time-sub-label {
+  font-size: 11px;
+  color: #718096;
+  font-weight: 600;
+  margin-left: 2px;
+}
+
+.time-input {
+  cursor: pointer;
+  padding: 8px 12px !important;
+}
+
+/* Native Clock Icon Styling */
+.time-input::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  filter: invert(10%) sepia(80%) saturate(5000%) hue-rotate(220deg);
+}
+
+/* --- CALENDAR GRID & LEGEND --- */
 .legend-bar {
   display: flex;
   justify-content: center;
@@ -164,19 +226,12 @@
 .dow-label { text-align: center; font-weight: 700; font-size: 12px; color: #718096; }
 .day-num { padding: 10px; font-size: 13px; text-align: center; }
 
-/* --- RECENT HEARINGS (STRETCHY LOGIC) --- */
+/* --- RECENT HEARINGS --- */
 .recent-section {
-  flex-grow: 1; /* Pushes content down to fill the long right card */
+  flex-grow: 1; 
   display: flex;
   flex-direction: column;
   margin-top: 30px;
-}
-
-.recent-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 15px;
 }
 
 .recent-hearings-list {
@@ -184,17 +239,6 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
-}
-
-.no-hearings-placeholder {
-  flex-grow: 1; 
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background-color: #f9f9f9;
-  border: 1.5px dashed #cbd5e0;
-  border-radius: 15px;
-  min-height: 150px;
 }
 
 .recent-hearing-card-new {
@@ -237,9 +281,6 @@
   font-weight: 600;
 }
 
-.rh-avatars { display: flex; align-items: center; margin-left: 5px; }
-.rh-avatar-circle { width: 24px; height: 24px; border-radius: 50%; border: 1.5px solid white; margin-left: -8px; background-color: #ccc; }
-
 .rh-view-btn {
   background: #BBBBBB;
   color: #444;
@@ -250,10 +291,95 @@
   cursor: pointer;
 }
 
-/* --- PAGINATION & DECORATION --- */
+/* --- UTILITIES & DECORATION --- */
 .title-with-underline { margin-bottom: 10px; }
+.no-hearings-placeholder {
+  flex-grow: 1; 
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: #f9f9f9;
+  border: 1.5px dashed #cbd5e0;
+  border-radius: 15px;
+  min-height: 150px;
+}
+/* Container for the entire section */
+.availability-horizontal-section {
+  margin: 15px 0 20px 0;
+}
 
-.pagination-controls { display: flex; align-items: center; gap: 10px; }
-.pagination-dots { display: flex; gap: 5px; }
-.dot-item { width: 8px; height: 8px; border-radius: 50%; background-color: #878787; cursor: pointer; }
-.dot-item.active { background-color: #cc0000; width: 16px; border-radius: 4px; }
+/* Forces items into a single line */
+.availability-row {
+  display: flex;
+  align-items: flex-end; /* Keeps labels and inputs aligned to bottom */
+  gap: 12px;
+  flex-wrap: nowrap;
+}
+
+.input-field {
+  display: flex;
+  flex-direction: column;
+}
+
+.inline-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: #718096;
+  margin-bottom: 5px;
+}
+
+/* Width Adjustments */
+.availability-row .input-field:nth-child(1) { width: 75px; }  /* Day */
+.availability-row .input-field:nth-child(2) { width: 140px; } /* Month */
+.availability-row .input-field:nth-child(3) { flex: 1; }      /* Time container takes rest of space */
+
+/* Compacts the inputs for better fit */
+.compact {
+  height: 42px !important;
+  padding: 0 10px !important;
+}
+
+/* Time range specific styling */
+.time-range-row {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.time-input-inline {
+  width: 100%;
+  height: 42px !important;
+  font-size: 11px !important;
+  padding: 0 5px !important;
+  border: 1px solid #cbd5e0;
+  border-radius: 6px;
+}
+
+.dash {
+  font-weight: bold;
+  color: #a0aec0;
+}
+/* Add to existing Schedule.css */
+
+.recent-hearing-card-new.done-style {
+    background-color: #f0fff4; /* Light green tint */
+    border-left: 4px solid #48bb78;
+}
+
+.status-done-pill {
+    background: #48bb78;
+    color: white;
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    margin-left: 8px;
+    font-weight: 600;
+}
+
+.group-label {
+    display: block;
+    font-weight: 600;
+    color: #051630;
+    margin-bottom: 8px;
+}

@@ -1,200 +1,79 @@
-/* 1. Main Container & Background */
-.settings-page {
-  position: relative;
-  width: 100%;
-  min-height: 100vh;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  overflow: hidden;
+/* ===== GLOBAL TOAST NOTIFICATION ===== */
+.global-toast-container {
+    position: fixed;
+    top: 25px;
+    right: 25px;
+    z-index: 10000; /* High z-index to stay above everything */
+    min-width: 320px;
+    max-width: 450px;
+    animation: slideInRight 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
 }
 
-.settings-bg-split {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  /* Diagonal split: Red to Dark Blue */
-  background: linear-gradient(135deg, #e62129 50%, #030a49 50%);
-  z-index: 1;
+.toast-banner {
+    display: flex;
+    align-items: center;
+    padding: 16px 20px;
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+    border-left: 6px solid #48bb78; /* Primary accent */
+    gap: 12px;
 }
 
-/* 2. Glassmorphism Wrapper (The large translucent area) */
-.settings-content-wrapper {
-  position: relative;
-  z-index: 2;
-  width: 90%;
-  max-width: 1200px;
-  /* Translucent glass effect */
-  background: rgba(255, 255, 255, 0.15); 
-  backdrop-filter: blur(15px);
-  -webkit-backdrop-filter: blur(15px);
-  padding: 50px;
-  border-radius: 25px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  margin: 20px;
+/* Success vs Error Type Logic */
+.global-toast-container.success .toast-banner {
+    border-left-color: #48bb78;
 }
 
-/* Header Text */
-.back-arrow {
-  background: none;
-  border: none;
-  color: white;
-  font-size: 24px;
-  font-weight: 700;
-  cursor: pointer;
-  margin-bottom: 30px;
-  display: flex;
-  align-items: center;
-  gap: 10px;
+.global-toast-container.error .toast-banner {
+    border-left-color: #f56565;
 }
 
-/* 3. Grid Layout */
-.settings-main-layout {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 30px;
+.toast-icon {
+    font-size: 22px;
+    flex-shrink: 0;
 }
 
-.settings-column {
-  flex: 1;
-  min-width: 320px;
-  display: flex;
-  flex-direction: column;
-  gap: 25px;
+.global-toast-container.success .toast-icon {
+    color: #48bb78;
 }
 
-/* 4. Card Design (White rounded boxes) */
-.settings-card {
-  background: white;
-  padding: 30px;
-  border-radius: 35px; /* Extra rounded as seen in your image */
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+.global-toast-container.error .toast-icon {
+    color: #f56565;
 }
 
-.settings-card h3 {
-  font-size: 18px;
-  margin-bottom: 5px;
-  color: #333;
+.toast-msg-text {
+    flex: 1;
+    font-size: 13px;
+    color: #2d3748;
+    font-weight: 500;
+    line-height: 1.5;
+    white-space: pre-line; /* Allows the \n in App.js to work */
 }
 
-.sub-text {
-  font-size: 14px;
-  color: #777;
-  margin-bottom: 15px;
+.toast-close-x {
+    background: none;
+    border: none;
+    font-size: 24px;
+    color: #a0aec0;
+    cursor: pointer;
+    line-height: 1;
+    padding: 0 0 4px 5px;
+    transition: color 0.2s;
 }
 
-/* 5. Inputs & Indicators */
-.settings-input {
-  width: 100%;
-  padding: 12px 15px;
-  border-radius: 12px;
-  border: 1px solid #e0e0e0;
-  background: #f8f9fa;
-  font-size: 14px;
+.toast-close-x:hover {
+    color: #4a5568;
 }
 
-.notif-control {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.status-indicator {
-  display: flex;
-  gap: 10px;
-  font-size: 13px;
-}
-
-.text-on { color: #00d28d; font-weight: bold; }
-.text-off { color: #aaa; }
-
-/* 6. Button Styling (Matching your image colors) */
-
-/* Save Changes - Blue Gradient */
-.btn-save-changes {
-  background: linear-gradient(to right, #00c6ff, #0072ff);
-  color: white;
-  border: none;
-  padding: 14px 40px;
-  border-radius: 12px;
-  font-weight: 800;
-  cursor: pointer;
-  box-shadow: 0 4px 15px rgba(0, 114, 255, 0.3);
-}
-
-/* Discard - Pure White */
-.btn-discard-settings {
-  background: white;
-  color: #333;
-  border: none;
-  padding: 14px 40px;
-  border-radius: 12px;
-  font-weight: 800;
-  cursor: pointer;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-}
-
-/* Delete Account - Red */
-.btn-delete-account {
-  background-color: #ff0000;
-  color: white;
-  border: none;
-  width: 100%;
-  padding: 15px;
-  border-radius: 15px;
-  font-weight: 800;
-  margin-top: 10px;
-  cursor: pointer;
-}
-
-/* Logout - Light Blue */
-.btn-logout-settings {
-  background-color: #009dff;
-  color: white;
-  border: none;
-  padding: 10px 40px;
-  border-radius: 10px;
-  font-weight: 700;
-  margin-top: 15px;
-  cursor: pointer;
-}
-
-/* Footer Container */
-.settings-action-footer {
-  margin-top: 40px;
-  display: flex;
-  justify-content: center;
-  gap: 20px;
-}
-
-/* 7. Profile Section */
-.profile-card-center {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-}
-
-.profile-avatar-border {
-  width: 150px;
-  height: 150px;
-  border-radius: 50%;
-  border: 6px solid #f0f0f0;
-  overflow: hidden;
-  margin: 10px 0;
-}
-
-.profile-avatar-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.profile-display-name {
-  font-size: 24px;
-  font-weight: 800;
-  color: #222;
-  margin: 10px 0;
+/* Single optimized animation */
+@keyframes slideInRight {
+    from {
+        transform: translateX(120%);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
 }

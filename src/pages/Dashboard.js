@@ -3,48 +3,67 @@ import { useNavigate } from 'react-router-dom';
 import '../styles/Dashboard.css';
 import { FaChevronLeft, FaChevronRight, FaTimes } from 'react-icons/fa';
 
-const Dashboard = ({ user, notifications }) => {
+const Dashboard = ({ user, notifications, onMarkAsRead, onClearAll }) => {
   const navigate = useNavigate();
   const [showPanel, setShowPanel] = useState(false);
   const [hearings, setHearings] = useState([]);
   
-  // Pagination State
   const [currentPage, setCurrentPage] = useState(0);
   const itemsPerPage = 5;
 
-  useEffect(() => {
-    const savedHearings = JSON.parse(localStorage.getItem('hearings')) || [];
+  const getMinutesAgo = (notificationId) => {
+    const now = Date.now();
+    const diffInMs = now - notificationId;
+    const diffInMinutes = Math.floor(diffInMs / 60000);
     
-    const monthMap = {
-      'JAN': 0, 'FEB': 1, 'MAR': 2, 'APR': 3, 'MAY': 4, 'JUN': 5,
-      'JUL': 6, 'AUG': 7, 'SEP': 8, 'OCT': 9, 'NOV': 10, 'DEC': 11
-    };
+    if (diffInMinutes < 1) return "Just now";
+    return `Done ${diffInMinutes} minute${diffInMinutes > 1 ? 's' : ''} ago`;
+  };
 
-    const sorted = savedHearings.sort((a, b) => {
-      const monthA = monthMap[a.date?.split(' ')[0].toUpperCase()] || 0;
-      const monthB = monthMap[b.date?.split(' ')[0].toUpperCase()] || 0;
-      const dayA = parseInt(a.day || a.date?.split(' ')[1]) || 0;
-      const dayB = parseInt(b.day || b.date?.split(' ')[1]) || 0;
-
-      if (monthA !== monthB) return monthA - monthB;
-      if (dayA !== dayB) return dayA - dayB;
-
-      const parseTimeToMinutes = (timeStr) => {
-        if (!timeStr) return 0;
-        const startTime = timeStr.split(' to ')[0]; 
-        const [time, modifier] = startTime.split(' ');
-        let [hours, minutes] = time.split(':');
-        hours = parseInt(hours, 10);
-        minutes = parseInt(minutes, 10);
-        if (hours === 12) hours = 0;
-        if (modifier?.toLowerCase() === 'pm') hours += 12;
-        return hours * 60 + minutes;
+  // --- SYNCED DATA LOADING ---
+  useEffect(() => {
+    const loadAndFilterData = () => {
+      const savedHearings = JSON.parse(localStorage.getItem('hearings')) || [];
+      const monthMap = {
+        'JAN': 0, 'FEB': 1, 'MAR': 2, 'APR': 3, 'MAY': 4, 'JUN': 5,
+        'JUL': 6, 'AUG': 7, 'SEP': 8, 'OCT': 9, 'NOV': 10, 'DEC': 11
       };
 
-      return parseTimeToMinutes(a.time) - parseTimeToMinutes(b.time);
-    });
+      // 1. FILTER: Only show what is NOT 'Done'
+      const pendingHearings = savedHearings.filter(h => h.status !== 'Done');
 
-    setHearings(sorted);
+      // 2. SORT: Order by Date and Time
+      const sorted = pendingHearings.sort((a, b) => {
+        const monthA = monthMap[a.date?.split(' ')[0].toUpperCase()] || 0;
+        const monthB = monthMap[b.date?.split(' ')[0].toUpperCase()] || 0;
+        const dayA = parseInt(a.day || a.date?.split(' ')[1]) || 0;
+        const dayB = parseInt(b.day || b.date?.split(' ')[1]) || 0;
+
+        if (monthA !== monthB) return monthA - monthB;
+        if (dayA !== dayB) return dayA - dayB;
+
+        const parseTimeToMinutes = (timeStr) => {
+          if (!timeStr) return 0;
+          const startTime = timeStr.split(' to ')[0]; 
+          const [time, modifier] = startTime.split(' ');
+          let [hours, minutes] = time.split(':');
+          hours = parseInt(hours, 10);
+          minutes = parseInt(minutes, 10);
+          if (hours === 12) hours = 0;
+          if (modifier?.toLowerCase() === 'pm') hours += 12;
+          return hours * 60 + minutes;
+        };
+
+        return parseTimeToMinutes(a.time) - parseTimeToMinutes(b.time);
+      });
+
+      setHearings(sorted);
+    };
+
+    loadAndFilterData();
+    // Listen for storage changes (e.g. Activity Log updates)
+    window.addEventListener('storage', loadAndFilterData);
+    return () => window.removeEventListener('storage', loadAndFilterData);
   }, []);
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
@@ -63,15 +82,14 @@ const Dashboard = ({ user, notifications }) => {
 
   return (
     <div className="app-container">
-      {/* Background Overlay */}
       {showPanel && (
         <div className="page-overlay" onClick={() => setShowPanel(false)}></div>
       )}
 
-      {/* --- RIGHT SIDE NOTIFICATION PANEL --- */}
+      {/* --- NOTIFICATION PANEL --- */}
       <div className={`side-notif-panel ${showPanel ? 'open' : ''}`}>
         <div className="side-panel-header">
-          <h3>Notifications</h3>
+          <h3>Notifications ({unreadCount})</h3>
           <button className="close-panel-btn" onClick={() => setShowPanel(false)}>
             <FaTimes />
           </button>
@@ -80,15 +98,25 @@ const Dashboard = ({ user, notifications }) => {
         <div className="side-panel-scroll">
           {notifications.length > 0 ? (
             notifications.map((n) => (
-              <div key={n.id} className={`side-notif-row ${n.isRead ? 'read' : 'unread'}`}>
+              <div 
+                key={n.id} 
+                className={`side-notif-row ${n.isRead ? 'read' : 'unread'}`}
+                onClick={() => !n.isRead && onMarkAsRead(n.id)}
+                style={{ cursor: n.isRead ? 'default' : 'pointer' }}
+              >
                 <div className={`side-accent ${n.status}`}></div>
                 <div className="side-notif-body">
-                  <p className="notif-title"><strong>Status:</strong> {n.action}</p>
-                  <p className="notif-remarks">Remarks: Quarterly goals reviewed and resource allocation finalized</p>
-                  <p className="notif-officer">Officer: <span>{n.officer}</span></p>
-                  <div className="notif-meta-details">
-                    <span>🕒 09:30-10:00 am</span>
-                    <span>📅 Feb 10, 2026</span>
+                  <p className="notif-title" style={{ fontSize: '14px', marginBottom: '4px' }}>
+                    <strong>{n.title}!</strong>
+                  </p>
+                  <p className="notif-remarks" style={{ fontSize: '12px', color: '#666', lineHeight: '1.4' }}>
+                    Remarks: Task completed. Please see all notifications for more details.
+                  </p>
+                  <div className="notif-meta-details" style={{ marginTop: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ color: '#999', fontSize: '11px', fontWeight: '500' }}>
+                      {getMinutesAgo(n.id)}
+                    </span>
+                    <span style={{ fontSize: '11px', color: '#999' }}>📅 {n.date}</span>
                   </div>
                 </div>
               </div>
@@ -98,8 +126,19 @@ const Dashboard = ({ user, notifications }) => {
           )}
         </div>
 
-        <div className="side-panel-footer" onClick={() => navigate('/notifications')}>
-          See All Notifications
+        <div className="side-panel-footer" style={{ display: 'flex', padding: '0', borderTop: '1px solid #eee' }}>
+          <button 
+            onClick={() => navigate('/notifications')}
+            style={{ flex: 1, padding: '15px', border: 'none', background: 'none', cursor: 'pointer', fontWeight: '600', fontSize: '13px', borderRight: '1px solid #eee' }}
+          >
+            See All Notifications
+          </button>
+          <button 
+            onClick={onClearAll}
+            style={{ flex: 1, padding: '15px', border: 'none', background: 'none', cursor: 'pointer', fontWeight: '600', fontSize: '13px', color: '#d9534f' }}
+          >
+            Clear All
+          </button>
         </div>
       </div>
 
@@ -107,7 +146,6 @@ const Dashboard = ({ user, notifications }) => {
         <main className="main-wrapper">
           <div className="content-area">
             <div className="dashboard-grid">
-              
               <div className="left-col">
                 <div className="action-row">
                   <div className="btn-card yellow" onClick={() => navigate('/schedule')}>
@@ -176,6 +214,7 @@ const Dashboard = ({ user, notifications }) => {
                   )}
                 </div>
 
+                {/* PAGINATION DOTS SYSTEM */}
                 {hearings.length > itemsPerPage && (
                   <div className="pagination-controls-bottom">
                     <FaChevronLeft 
@@ -184,7 +223,11 @@ const Dashboard = ({ user, notifications }) => {
                     />
                     <div className="pagination-dots">
                       {Array.from({ length: totalPages }).map((_, i) => (
-                        <span key={i} className={`dot-item ${currentPage === i ? 'active' : ''}`} onClick={() => setCurrentPage(i)} />
+                        <span 
+                          key={i} 
+                          className={`dot-item ${currentPage === i ? 'active' : ''}`} 
+                          onClick={() => setCurrentPage(i)} 
+                        />
                       ))}
                     </div>
                     <FaChevronRight 

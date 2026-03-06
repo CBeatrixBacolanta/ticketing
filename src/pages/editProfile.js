@@ -1,27 +1,24 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import '../styles/EditProfile.css';
 import { FaEye, FaEyeSlash, FaCloudUploadAlt } from 'react-icons/fa';
 
-const EditProfile = ({ user, onSave }) => {
+const EditProfile = ({ user = {}, onSave = () => {} }) => {
+  // Initialize state with user data or empty defaults
   const [formData, setFormData] = useState({
-    ...user,
+    firstName: user?.firstName || '',
+    middleInitial: user?.middleInitial || '',
+    lastName: user?.lastName || '',
+    email: user?.email || '',
+    profilePic: user?.profilePic || null,
     currentPassword: 'password123',
     newPassword: '',
     retypePassword: ''
   });
 
-  const [notification, setNotification] = useState({ show: false, message: '', type: '' });
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [showRetype, setShowRetype] = useState(false);
   const fileInputRef = useRef(null);
-
-  useEffect(() => {
-    if (notification.show) {
-      const timer = setTimeout(() => setNotification({ ...notification, show: false }), 3000);
-      return () => clearTimeout(timer);
-    }
-  }, [notification]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -41,57 +38,36 @@ const EditProfile = ({ user, onSave }) => {
   };
 
   const handleSaveClick = () => {
-    // 1. Strict Validation: Check if First Name, Last Name, or Email are blank
-    const isFirstNameEmpty = !formData.firstName || formData.firstName.trim() === "";
-    const isLastNameEmpty = !formData.lastName || formData.lastName.trim() === "";
-    const isEmailEmpty = !formData.email || formData.email.trim() === "";
-
-    if (isFirstNameEmpty || isLastNameEmpty || isEmailEmpty) {
-      setNotification({ 
-        show: true, 
-        message: "Action Denied: First Name, Last Name, and Email cannot be blank.", 
-        type: "error" 
-      });
-      // Scroll to top so user sees the notification
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+    // Basic Validation
+    if (!formData.firstName?.trim() || !formData.lastName?.trim() || !formData.email?.trim()) {
+      alert("First Name, Last Name, and Email cannot be blank.");
       return;
     }
 
-    // 2. Password Match Validation
     if (formData.newPassword && formData.newPassword !== formData.retypePassword) {
-      setNotification({ show: true, message: "The new passwords do not match.", type: "error" });
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      alert("The new passwords do not match.");
       return;
     }
 
-    // 3. Process Update
+    // Process the data object for the parent component
     let updatedData = { ...formData };
 
-    // If a new password was entered, update the "current" one
     if (formData.newPassword) {
       updatedData.currentPassword = formData.newPassword;
       updatedData.newPassword = '';
       updatedData.retypePassword = '';
-      setFormData(updatedData);
     }
 
+    // Pass the data back to App.js
     onSave(updatedData);
-    setNotification({ show: true, message: "Profile updated successfully!", type: "success" });
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   return (
     <div className="profile-wrapper">
-      {notification.show && (
-        <div className={`notification-toast ${notification.type}`}>
-          <span className="icon">{notification.type === 'success' ? '✓' : '✕'}</span>
-          {notification.message}
-        </div>
-      )}
-
       <div className="profile-header">
         <h1>Profile</h1>
-        <p>Update your profile</p>
+        <p>Update your profile settings</p>
       </div>
 
       {/* PHOTO SECTION */}
@@ -116,7 +92,7 @@ const EditProfile = ({ user, onSave }) => {
             <p><strong>Click to upload</strong> or drag and drop</p>
           </div>
           <div className="card-actions">
-            <button type="button" className="btn-link save" onClick={handleSaveClick}>Save</button>
+            <button type="button" className="btn-link save" onClick={handleSaveClick}>Save Changes</button>
           </div>
         </div>
       </div>
@@ -131,23 +107,23 @@ const EditProfile = ({ user, onSave }) => {
           <div className="form-row">
             <div className="form-group">
               <label htmlFor="firstName">First Name *</label>
-              <input type="text" id="firstName" name="firstName" value={formData.firstName} onChange={handleChange} placeholder="Required" />
+              <input type="text" id="firstName" name="firstName" value={formData.firstName} onChange={handleChange} />
             </div>
             <div className="form-group" style={{ flex: '0 0 80px' }}>
               <label htmlFor="middleInitial">M.I.</label>
-              <input type="text" id="middleInitial" name="middleInitial" value={formData.middleInitial} onChange={handleChange} maxLength="1" style={{ textAlign: 'center' }} />
+              <input type="text" id="middleInitial" name="middleInitial" value={formData.middleInitial} onChange={handleChange} maxLength="1" />
             </div>
             <div className="form-group">
               <label htmlFor="lastName">Last Name *</label>
-              <input type="text" id="lastName" name="lastName" value={formData.lastName} onChange={handleChange} placeholder="Required" />
+              <input type="text" id="lastName" name="lastName" value={formData.lastName} onChange={handleChange} />
             </div>
           </div>
           <div className="form-group">
-            <label htmlFor="userEmail">Email *</label>
-            <input type="email" id="userEmail" name="email" value={formData.email} onChange={handleChange} placeholder="Required" />
+            <label htmlFor="userEmail">Email Address *</label>
+            <input type="email" id="userEmail" name="email" value={formData.email} onChange={handleChange} />
           </div>
           <div className="card-actions">
-            <button type="button" className="btn-link save" onClick={handleSaveClick}>Save</button>
+            <button type="button" className="btn-link save" onClick={handleSaveClick}>Save Changes</button>
           </div>
         </div>
       </div>
@@ -155,8 +131,8 @@ const EditProfile = ({ user, onSave }) => {
       {/* PASSWORD SECTION */}
       <div className="outer-card">
         <div className="card-intro">
-          <h2>Password</h2>
-          <p>Update your security settings</p>
+          <h2>Security</h2>
+          <p>Change your password</p>
         </div>
         <div className="inner-card">
           <div className="form-group">
@@ -169,19 +145,19 @@ const EditProfile = ({ user, onSave }) => {
           <div className="form-group">
             <label htmlFor="newPass">New Password</label>
             <div className="input-with-icon">
-              <input type={showNew ? "text" : "password"} id="newPass" name="newPassword" value={formData.newPassword} onChange={handleChange} placeholder="Enter new password" />
+              <input type={showNew ? "text" : "password"} id="newPass" name="newPassword" value={formData.newPassword} onChange={handleChange} />
               <span className="icon-trigger" onClick={() => setShowNew(!showNew)}>{showNew ? <FaEyeSlash /> : <FaEye />}</span>
             </div>
           </div>
           <div className="form-group">
-            <label htmlFor="retypePass">Re-type New Password</label>
+            <label htmlFor="retypePass">Confirm New Password</label>
             <div className="input-with-icon">
-              <input type={showRetype ? "text" : "password"} id="retypePass" name="retypePassword" value={formData.retypePassword} onChange={handleChange} placeholder="Confirm new password" />
+              <input type={showRetype ? "text" : "password"} id="retypePass" name="retypePassword" value={formData.retypePassword} onChange={handleChange} />
               <span className="icon-trigger" onClick={() => setShowRetype(!showRetype)}>{showRetype ? <FaEyeSlash /> : <FaEye />}</span>
             </div>
           </div>
           <div className="card-actions">
-            <button type="button" className="btn-link save" onClick={handleSaveClick}>Save</button>
+            <button type="button" className="btn-link save" onClick={handleSaveClick}>Update Password</button>
           </div>
         </div>
       </div>

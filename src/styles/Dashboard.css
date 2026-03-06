@@ -178,6 +178,7 @@ body {
     height: 4px;
     background: var(--yellow);
     margin-top: 8px;
+    margin-bottom: 10px;
     border-radius: 4px;
 }
 

@@ -1,63 +1,108 @@
-import React, { useState } from 'react';
+import React from 'react';
+import { FaArrowLeft, FaTimes, FaTrashAlt, FaClock, FaCalendarAlt } from 'react-icons/fa'; 
+import { useNavigate } from 'react-router-dom';
 import '../styles/Notifications.css';
 
-const Notifications = () => {
-  const [notifications, setNotifications] = useState([
-    { id: 1, officer: "CASIÑO, Roy S.", action: "hearing completed", time: "13 mins ago", status: "yellow", isRead: false },
-    { id: 2, officer: "CASIÑO, Roy S.", action: "hearing completed", time: "26 mins ago", status: "green", isRead: false },
-    { id: 3, officer: "CASIÑO, Roy S.", action: "hearing completed", time: "26 mins ago", status: "green", isRead: false },
-    { id: 4, officer: "CASIÑO, Roy S.", action: "hearing completed", time: "13 mins ago", status: "yellow", isRead: true },
-    { id: 5, officer: "CASIÑO, Roy S.", action: "hearing completed", time: "1 day ago", status: "yellow", isRead: true },
-  ]);
+const Notifications = ({ isOpen, onClose, notifications, onMarkAsRead, onClearAll, isFullPage }) => {
+  const navigate = useNavigate();
+  const unreadCount = notifications.filter(n => !n.isRead).length;
 
-  const handleNotificationClick = (id) => {
-    setNotifications(notifications.map(n => 
-      n.id === id ? { ...n, isRead: true } : n
-    ));
+  const handleSeeAll = (e) => {
+    e.preventDefault();
+    if (onClose) onClose();
+    navigate('/notifications'); 
   };
 
+  const containerClass = isFullPage 
+    ? "notifications-fullscreen-v2" 
+    : `side-notif-panel ${isOpen ? 'open' : ''}`;
+
   return (
-    <div className="notifications-fullscreen-v2">
-      <div className="notifications-header-v2">
-        <button className="back-btn-v2" onClick={() => window.history.back()}>
-          ←
-        </button>
-        <span>Notifications</span>
-      </div>
-      
-      {/* Simple Notification List */}
-      <div className="notifications-list-v2">
-        {notifications.map((n) => (
-          <div 
-            key={n.id}
-            className="notification-row"
-            onClick={() => handleNotificationClick(n.id)}
-          >
-            <div className="left-accent"></div>
+    <>
+      {!isFullPage && isOpen && <div className="side-panel-overlay" onClick={onClose}></div>}
 
-            <div className="notif-main">
-              <p className="notif-status">
-                <strong>Status:</strong> {n.action}
-              </p>
-
-              <p className="notif-remarks">
-                Remarks: Quarterly goals reviewed and resource allocation finalized
-              </p>
-
-              <p className="notif-officer">
-                Officer: <span>{n.officer}</span>
-              </p>
-            </div>
-
-            <div className="notif-meta">
-              <p>🕒 Time: 09:30-10:00 am (Duration: 20 min)</p>
-              <p>📅 Date: February 10, 2026</p>
-            </div>
+      <div className={containerClass}>
+        {/* ANGLED HEADER */}
+        <div className={isFullPage ? "notifications-header-v2" : "side-panel-header"}>
+          <div className="header-left">
+            {isFullPage && (
+              <button className="back-btn-v2" onClick={() => navigate(-1)}>
+                <FaArrowLeft size={20} />
+              </button>
+            )}
+            <h3>Notifications {unreadCount > 0 && `(${unreadCount})`}</h3>
           </div>
-        ))}
+
+          <div className="header-actions">
+            {notifications.length > 0 && (
+              <button className="clear-all-btn" onClick={onClearAll}>
+                <FaTrashAlt /> <span>Clear All</span>
+              </button>
+            )}
+            {!isFullPage && (
+              <button className="close-panel-btn" onClick={onClose}>
+                <FaTimes />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* NOTIFICATION CONTENT */}
+        <div className={isFullPage ? "notifications-list-v2" : "side-panel-scroll"}>
+          {notifications.length > 0 ? (
+            notifications.map((n) => (
+              <div 
+                key={n.id} 
+                className={isFullPage ? `notification-row ${n.isRead ? 'read' : 'unread'}` : `side-notif-row ${n.isRead ? 'read' : 'unread'}`}
+                onClick={() => !n.isRead && onMarkAsRead(n.id)}
+              >
+                {/* THE YELLOW BAR FROM PROTOTYPE */}
+                <div className="left-accent yellow"></div>
+                
+                <div className="notif-content-wrapper">
+                  <div className="notif-main-info">
+                    <p className="notif-status-text">
+                      Status: {n.title} Completed
+                      {!n.isRead && <span className="unread-dot">●</span>}
+                    </p>
+                    <p className="notif-remarks">
+                      Remarks: {n.remarks || "Task completed successfully. Check the Activity Log for more details."}
+                    </p>
+                    <p className="notif-officer">
+                      Officer: <span>{n.officer || "System"}</span>
+                    </p>
+                  </div>
+
+                  <div className="notif-meta-right">
+                    <div className="meta-item">
+                       <FaClock className="meta-icon" /> 
+                       <span>Time: {n.time}</span>
+                    </div>
+                    <div className="meta-item">
+                       <FaCalendarAlt className="meta-icon" /> 
+                       <span>Date: {n.date}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="none-state">
+              NO NEW NOTIFICATIONS
+            </div>
+          )}
+        </div>
+
+        {!isFullPage && (
+          <div className="side-panel-footer" onClick={handleSeeAll}>
+            See All Notifications
+          </div>
+        )}
+        
+        {isFullPage && <div className="bottom-red-accent"></div>}
       </div>
-    </div>
+    </>
   );
 };
 
-export default Notifications;
+export default Notifications; 
