@@ -1,12 +1,16 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import '../styles/ActivityLog.css';
 import { 
-  FaArrowLeft, FaTrashAlt, FaCheckCircle, FaEdit, 
+  FaArrowLeft, FaTrashAlt, FaEdit, 
   FaArchive, FaTimes, FaHistory, FaListUl, 
-  FaEllipsisV, FaBan, FaPaperPlane 
+  FaEllipsisV, FaBan, FaPaperPlane,
+  FaFileMedical // Icon for the Minutes button
 } from 'react-icons/fa';
 
-const ActivityLog = ({ onBack, onRemark, onEdit }) => {
+const ActivityLog = ({ onBack, onEdit }) => {
+  const navigate = useNavigate();
+
   const [logs, setLogs] = useState([]);
   const [actionTarget, setActionTarget] = useState(null);
   const [viewMode, setViewMode] = useState('active'); 
@@ -21,7 +25,7 @@ const ActivityLog = ({ onBack, onRemark, onEdit }) => {
     "Weather/Force Majeure"
   ];
 
-  const loadLogs = () => {
+  const loadLogs = useCallback(() => {
     const savedHearings = JSON.parse(localStorage.getItem('hearings')) || [];
     const sortedLogs = [...savedHearings].sort((a, b) => b.id - a.id);
     
@@ -30,13 +34,13 @@ const ActivityLog = ({ onBack, onRemark, onEdit }) => {
     } else {
       setLogs(sortedLogs.filter(h => h.status?.toLowerCase() === 'done' || h.status?.toLowerCase() === 'cancelled'));
     }
-  };
+  }, [viewMode]);
 
   useEffect(() => {
     loadLogs();
     window.addEventListener('storage', loadLogs);
     return () => window.removeEventListener('storage', loadLogs);
-  }, [viewMode]);
+  }, [loadLogs]);
 
   const handleFinalAction = (type, reason = null) => {
     const saved = JSON.parse(localStorage.getItem('hearings')) || [];
@@ -72,17 +76,22 @@ const ActivityLog = ({ onBack, onRemark, onEdit }) => {
         </button>
 
         <div className="view-toggle-container">
-          <button className={`toggle-btn ${viewMode === 'active' ? 'active' : ''}`} onClick={() => setViewMode('active')}>
+          <button 
+            className={`toggle-btn ${viewMode === 'active' ? 'active' : ''}`} 
+            onClick={() => setViewMode('active')}
+          >
             <FaListUl /> Active
           </button>
-          <button className={`toggle-btn ${viewMode === 'archived' ? 'active' : ''}`} onClick={() => setViewMode('archived')}>
+          <button 
+            className={`toggle-btn ${viewMode === 'archived' ? 'active' : ''}`} 
+            onClick={() => setViewMode('archived')}
+          >
             <FaHistory /> Archives
           </button>
         </div>
       </div>
 
       <div className="log-container-card">
-        {/* wrapper-inner provides the scrollable area */}
         <div className="table-wrapper-inner">
           <table className="activity-table">
             <thead>
@@ -112,8 +121,26 @@ const ActivityLog = ({ onBack, onRemark, onEdit }) => {
                     </td>
                     <td className="col-action">
                       <div className="action-btns-wrapper">
-                        <button className="edit-btn-icon" onClick={() => onEdit(row)}><FaEdit /></button>
-                        <button className="remark-btn" onClick={() => onRemark(row.id)}>Remark</button>
+                        {/* Only show Minutes button if the status is Done/Archived */}
+                        {row.status?.toLowerCase() === 'done' && (
+                          <button 
+                            className="minutes-btn" 
+                            title="Add Minutes"
+                            onClick={() => navigate('/minutes', { state: { rfaNumber: row.title } })}
+                          >
+                            <FaFileMedical />
+                          </button>
+                        )}
+                        
+                        <button className="edit-btn-icon" onClick={() => onEdit(row)}>
+                            <FaEdit />
+                        </button>
+                        <button 
+                            className="remark-btn" 
+                            onClick={() => navigate(`/remark/${row.id}`)}
+                        >
+                            Remark
+                        </button>
                         <button className="more-actions-btn" onClick={() => setActionTarget(row.id)}>
                           <FaEllipsisV />
                         </button>
@@ -131,6 +158,7 @@ const ActivityLog = ({ onBack, onRemark, onEdit }) => {
         </div>
       </div>
 
+      {/* MODAL SECTION */}
       {actionTarget && (
         <div className="action-overlay">
           <div className="action-choice-card">

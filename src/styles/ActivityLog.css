@@ -88,7 +88,7 @@
 .col-time { width: 160px; } 
 .col-purpose { width: auto; } 
 .col-status  { width: 140px; }
-.col-action  { width: 180px; }
+.col-action { width: 220px; }
 
 .activity-table th {
   position: sticky; 
@@ -112,7 +112,7 @@
   white-space: nowrap;
 }
 
-.officer-name-cell { font-weight: 600; text-align: left !important; padding-left: 15px; }
+.officer-name-cell { font-weight: 600; text-align: center !important; padding-left: 0; }
 .purpose-cell { font-style: italic; color: #666; text-align: center !important; }
 
 /* Status Labels */
@@ -192,3 +192,49 @@
 .submit-custom-btn:disabled { opacity: 0.5; cursor: not-allowed; }
 
 .back-to-options { margin-top: 25px; background: none; border: none; color: #002b7f; text-decoration: underline; cursor: pointer; font-weight: 600; }
+
+/* Minutes Button Styling */
+.minutes-btn {
+  background-color: #e0f2fe;
+  color: #0369a1;
+  border: 1px solid #bae6fd;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  transition: all 0.2s ease;
+}
+
+.minutes-btn:hover {
+  background-color: #0369a1;
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+}
+
+.action-btns-wrapper { 
+  display: flex; 
+  align-items: center; 
+  justify-content: center; 
+  gap: 10px; 
+}
+
+.empty-row-container td {
+  padding: 100px 0;
+  color: #888;
+  font-style: italic;
+}
+
+.log-container-card {
+  background: white; 
+  border-radius: 25px; 
+  padding: 0;
+  border: 5px solid #cc0000;
+  flex: 1; 
+  overflow: hidden; 
+  display: flex;
+  flex-direction: column;
+}

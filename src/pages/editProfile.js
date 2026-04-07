@@ -1,9 +1,8 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import '../styles/EditProfile.css';
 import { FaEye, FaEyeSlash, FaCloudUploadAlt } from 'react-icons/fa';
 
 const EditProfile = ({ user = {}, onSave = () => {} }) => {
-  // Initialize state with user data or empty defaults
   const [formData, setFormData] = useState({
     firstName: user?.firstName || '',
     middleInitial: user?.middleInitial || '',
@@ -19,6 +18,17 @@ const EditProfile = ({ user = {}, onSave = () => {} }) => {
   const [showNew, setShowNew] = useState(false);
   const [showRetype, setShowRetype] = useState(false);
   const fileInputRef = useRef(null);
+
+  useEffect(() => {
+    setFormData(prev => ({
+      ...prev,
+      firstName: user?.firstName || '',
+      middleInitial: user?.middleInitial || '',
+      lastName: user?.lastName || '',
+      email: user?.email || '',
+      profilePic: user?.profilePic || null,
+    }));
+  }, [user]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -38,19 +48,20 @@ const EditProfile = ({ user = {}, onSave = () => {} }) => {
   };
 
   const handleSaveClick = () => {
-    // Basic Validation
+    // Basic validation check without browser alerts
     if (!formData.firstName?.trim() || !formData.lastName?.trim() || !formData.email?.trim()) {
-      alert("First Name, Last Name, and Email cannot be blank.");
       return;
     }
 
     if (formData.newPassword && formData.newPassword !== formData.retypePassword) {
-      alert("The new passwords do not match.");
       return;
     }
 
-    // Process the data object for the parent component
-    let updatedData = { ...formData };
+    let updatedData = { 
+      ...formData,
+      firstName: formData.firstName.trim(),
+      lastName: formData.lastName.trim()
+    };
 
     if (formData.newPassword) {
       updatedData.currentPassword = formData.newPassword;
@@ -58,8 +69,8 @@ const EditProfile = ({ user = {}, onSave = () => {} }) => {
       updatedData.retypePassword = '';
     }
 
-    // Pass the data back to App.js
     onSave(updatedData);
+    // Smooth scroll to top to see the updated name/photo immediately
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -82,11 +93,19 @@ const EditProfile = ({ user = {}, onSave = () => {} }) => {
                <img src={formData.profilePic} alt="Profile" />
             ) : (
               <div className="guest-avatar-edit">
-                <svg viewBox="0 0 24 24" fill="#718096"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" /></svg>
+                <svg viewBox="0 0 24 24" fill="#718096">
+                  <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+                </svg>
               </div>
             )}
           </div>
-          <input type="file" ref={fileInputRef} onChange={handleImageChange} style={{ display: 'none' }} accept="image/*" />
+          <input 
+            type="file" 
+            ref={fileInputRef} 
+            onChange={handleImageChange} 
+            style={{ display: 'none' }} 
+            accept="image/*" 
+          />
           <div className="upload-box" onClick={() => fileInputRef.current.click()} style={{ cursor: 'pointer' }}>
             <FaCloudUploadAlt className="upload-icon-svg" />
             <p><strong>Click to upload</strong> or drag and drop</p>
@@ -107,20 +126,46 @@ const EditProfile = ({ user = {}, onSave = () => {} }) => {
           <div className="form-row">
             <div className="form-group">
               <label htmlFor="firstName">First Name *</label>
-              <input type="text" id="firstName" name="firstName" value={formData.firstName} onChange={handleChange} />
+              <input 
+                type="text" 
+                id="firstName" 
+                name="firstName" 
+                value={formData.firstName} 
+                onChange={handleChange} 
+                placeholder="e.g. Bea"
+              />
             </div>
             <div className="form-group" style={{ flex: '0 0 80px' }}>
               <label htmlFor="middleInitial">M.I.</label>
-              <input type="text" id="middleInitial" name="middleInitial" value={formData.middleInitial} onChange={handleChange} maxLength="1" />
+              <input 
+                type="text" 
+                id="middleInitial" 
+                name="middleInitial" 
+                value={formData.middleInitial} 
+                onChange={handleChange} 
+                maxLength="1" 
+              />
             </div>
             <div className="form-group">
               <label htmlFor="lastName">Last Name *</label>
-              <input type="text" id="lastName" name="lastName" value={formData.lastName} onChange={handleChange} />
+              <input 
+                type="text" 
+                id="lastName" 
+                name="lastName" 
+                value={formData.lastName} 
+                onChange={handleChange} 
+              />
             </div>
           </div>
           <div className="form-group">
             <label htmlFor="userEmail">Email Address *</label>
-            <input type="email" id="userEmail" name="email" value={formData.email} onChange={handleChange} />
+            <input 
+              type="email" 
+              id="userEmail" 
+              name="email" 
+              value={formData.email} 
+              onChange={handleChange} 
+            />
           </div>
           <div className="card-actions">
             <button type="button" className="btn-link save" onClick={handleSaveClick}>Save Changes</button>
@@ -138,22 +183,46 @@ const EditProfile = ({ user = {}, onSave = () => {} }) => {
           <div className="form-group">
             <label htmlFor="currentPass">Current Password</label>
             <div className="input-with-icon">
-              <input type={showCurrent ? "text" : "password"} id="currentPass" name="currentPassword" value={formData.currentPassword} onChange={handleChange} />
-              <span className="icon-trigger" onClick={() => setShowCurrent(!showCurrent)}>{showCurrent ? <FaEyeSlash /> : <FaEye />}</span>
+              <input 
+                type={showCurrent ? "text" : "password"} 
+                id="currentPass" 
+                name="currentPassword" 
+                value={formData.currentPassword} 
+                onChange={handleChange} 
+              />
+              <span className="icon-trigger" onClick={() => setShowCurrent(!showCurrent)}>
+                {showCurrent ? <FaEyeSlash /> : <FaEye />}
+              </span>
             </div>
           </div>
           <div className="form-group">
             <label htmlFor="newPass">New Password</label>
             <div className="input-with-icon">
-              <input type={showNew ? "text" : "password"} id="newPass" name="newPassword" value={formData.newPassword} onChange={handleChange} />
-              <span className="icon-trigger" onClick={() => setShowNew(!showNew)}>{showNew ? <FaEyeSlash /> : <FaEye />}</span>
+              <input 
+                type={showNew ? "text" : "password"} 
+                id="newPass" 
+                name="newPassword" 
+                value={formData.newPassword} 
+                onChange={handleChange} 
+              />
+              <span className="icon-trigger" onClick={() => setShowNew(!showNew)}>
+                {showNew ? <FaEyeSlash /> : <FaEye />}
+              </span>
             </div>
           </div>
           <div className="form-group">
             <label htmlFor="retypePass">Confirm New Password</label>
             <div className="input-with-icon">
-              <input type={showRetype ? "text" : "password"} id="retypePass" name="retypePassword" value={formData.retypePassword} onChange={handleChange} />
-              <span className="icon-trigger" onClick={() => setShowRetype(!showRetype)}>{showRetype ? <FaEyeSlash /> : <FaEye />}</span>
+              <input 
+                type={showRetype ? "text" : "password"} 
+                id="retypePass" 
+                name="retypePassword" 
+                value={formData.retypePassword} 
+                onChange={handleChange} 
+              />
+              <span className="icon-trigger" onClick={() => setShowRetype(!showRetype)}>
+                {showRetype ? <FaEyeSlash /> : <FaEye />}
+              </span>
             </div>
           </div>
           <div className="card-actions">

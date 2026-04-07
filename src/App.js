@@ -5,14 +5,19 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import SideBar from './pages/SideBar';
 import Dashboard from './pages/Dashboard';
 import Notifications from './pages/Notifications';
-import Schedule from './pages/Schedule';
 import ToastNotif from './pages/ToastNotif';
 import Reports from './pages/Reports';
 import Settings from './pages/Settings';
 import EditProfile from './pages/EditProfile';
+import Remarks from './pages/Remarks';
+import Minutes from './pages/Minutes';
+import MinutesInfo from './pages/MinutesInfo';
+import MainSched from './pages/MainSched';
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  
+  // Initialize user from 'currentUser' to match your storage key
   const [user, setUser] = useState(() => JSON.parse(localStorage.getItem('currentUser')) || null);
   
   const [notifications, setNotifications] = useState(() => {
@@ -20,23 +25,17 @@ function App() {
     return saved ? JSON.parse(saved) : [];
   });
 
-  // State for the custom Toast
   const [toast, setToast] = useState({ show: false, message: "", type: "success" });
 
   useEffect(() => {
     localStorage.setItem('notifications', JSON.stringify(notifications));
   }, [notifications]);
 
-  // Updated logic to handle the countdown timing
   const triggerToast = (msg, type = "success") => {
-    // Force a reset if a toast is already showing
     setToast({ show: false, message: "", type: "success" });
-    
     setTimeout(() => {
       setToast({ show: true, message: msg, type });
     }, 10);
-
-    // Auto-hide after 3 seconds to match CSS animation
     setTimeout(() => {
       setToast(prev => ({ ...prev, show: false }));
     }, 3010);
@@ -45,22 +44,20 @@ function App() {
   const handleUpdateUser = (updatedUserData) => {
     setUser(updatedUserData);
     localStorage.setItem('currentUser', JSON.stringify(updatedUserData));
+    // Replaced alert with triggerToast
     triggerToast("Profile updated successfully!");
   };
 
   const handleLogout = () => {
-    if (window.confirm("Are you sure you want to logout?")) {
-      localStorage.removeItem('isAuthenticated');
-      localStorage.removeItem('currentUser');
-      window.location.href = '/login';
-    }
+    localStorage.removeItem('isAuthenticated');
+    localStorage.removeItem('currentUser');
+    window.location.href = '/login';
   };
 
   const handleClearAll = () => {
-    if (window.confirm("Clear all notifications?")) {
-      setNotifications([]);
-      localStorage.removeItem('notifications');
-    }
+    setNotifications([]);
+    localStorage.removeItem('notifications');
+    triggerToast("Notifications cleared", "info");
   };
 
   const handleMarkAsRead = (id) => {
@@ -69,7 +66,7 @@ function App() {
     ));
   };
 
-  // Status Checker Logic for Notifications
+  // Status Checker Logic
   useEffect(() => {
     const checkStatus = () => {
       const savedHearings = JSON.parse(localStorage.getItem('hearings')) || [];
@@ -136,7 +133,6 @@ function App() {
 
   return (
     <Router>
-      {/* Toast component stays here so it can be seen on all pages */}
       <ToastNotif toast={toast} setToast={setToast} />
       
       <div className="app-layout" style={{ display: 'flex', minHeight: '100vh', width: '100%' }}>
@@ -157,14 +153,34 @@ function App() {
           position: 'relative'
         }}>
           <Routes>
-            <Route path="/dashboard" element={<Dashboard notifications={notifications} onClearAll={handleClearAll} onMarkAsRead={handleMarkAsRead} />} />
-            <Route path="/notifications" element={<Notifications notifications={notifications} isFullPage={true} onClearAll={handleClearAll} onMarkAsRead={handleMarkAsRead} />} />
-            <Route path="/schedule" element={<Schedule triggerToast={triggerToast} />} />
+            {/* FIX: Added 'user' prop here so Dashboard knows your name */}
+            <Route path="/dashboard" element={
+              <Dashboard 
+                user={user} 
+                notifications={notifications} 
+                onClearAll={handleClearAll} 
+                onMarkAsRead={handleMarkAsRead} 
+              />
+            } />
+
+            <Route path="/notifications" element={
+              <Notifications 
+                notifications={notifications} 
+                isFullPage={true} 
+                onClearAll={handleClearAll} 
+                onMarkAsRead={handleMarkAsRead} 
+              />
+            } />
+            
+            <Route path="/schedule" element={<MainSched triggerToast={triggerToast} />} />
+            <Route path="/remarks/:id" element={<Remarks />} />
             <Route path="/reports" element={<Reports />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/edit-profile" element={<EditProfile user={user} onSave={handleUpdateUser} />} />
             <Route path="/login" element={<div>Login Page</div>} />
             <Route path="/" element={<Navigate to="/dashboard" />} />
+            <Route path="/minutes" element={<Minutes />} />
+            <Route path="/minutes-info/:fileId" element={<MinutesInfo />} />
           </Routes>
         </main>
       </div>

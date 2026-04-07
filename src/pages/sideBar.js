@@ -18,6 +18,9 @@ const SideBar = ({ user, isOpen, setIsOpen, onLogout }) => {
   return (
     <>
       <style>{`
+      * {
+      box-sizing: border-box;
+      }
         .sidebar-container {
           width: 260px;
           background: #030a49;
@@ -33,6 +36,7 @@ const SideBar = ({ user, isOpen, setIsOpen, onLogout }) => {
           flex-direction: column;
           align-items: center;
           transform: ${isOpen ? "translateX(0)" : "translateX(-260px)"};
+          box-shadow: 2px 0 10px rgba(0,0,0,0.1);
         }
 
         .gov-header { 
@@ -68,7 +72,6 @@ const SideBar = ({ user, isOpen, setIsOpen, onLogout }) => {
 
         nav { width: 100%; display: flex; flex-direction: column; gap: 8px; }
         
-        /* UPDATED: NO ICONS, FULLY CENTERED TEXT */
         .nav-link { 
           color: white; 
           text-decoration: none; 
@@ -80,8 +83,8 @@ const SideBar = ({ user, isOpen, setIsOpen, onLogout }) => {
           cursor: pointer;
           transition: 0.2s; 
           width: 100%; 
-          display: block; /* Allows text-align to work */
-          text-align: center; /* Centers the text horizontally */
+          display: block; 
+          text-align: center; 
         }
         
         .nav-link:hover, .nav-link.active { 
@@ -133,6 +136,10 @@ const SideBar = ({ user, isOpen, setIsOpen, onLogout }) => {
         <nav>
           <button className={`nav-link ${isActive('/dashboard') ? 'active' : ''}`} onClick={() => navigate('/dashboard')}>Dashboard</button>
           <button className={`nav-link ${isActive('/schedule') ? 'active' : ''}`} onClick={() => navigate('/schedule')}>Schedule</button>
+          
+          {/* Added Minutes Navigation Option */}
+          <button className={`nav-link ${isActive('/minutes') ? 'active' : ''}`} onClick={() => navigate('/minutes')}>Minutes</button>
+          
           <button className={`nav-link ${isActive('/reports') ? 'active' : ''}`} onClick={() => navigate('/reports')}>Report</button>
           <button className={`nav-link ${isActive('/settings') ? 'active' : ''}`} onClick={() => navigate('/settings')}>Settings</button>
           <button className="nav-link logout-link" onClick={handleLogoutClick}>Logout</button>
