@@ -140,7 +140,6 @@ const SideBar = ({ user, isOpen, setIsOpen, onLogout }) => {
           {/* Added Minutes Navigation Option */}
           <button className={`nav-link ${isActive('/minutes') ? 'active' : ''}`} onClick={() => navigate('/minutes')}>Minutes</button>
           
-          <button className={`nav-link ${isActive('/reports') ? 'active' : ''}`} onClick={() => navigate('/reports')}>Report</button>
           <button className={`nav-link ${isActive('/settings') ? 'active' : ''}`} onClick={() => navigate('/settings')}>Settings</button>
           <button className="nav-link logout-link" onClick={handleLogoutClick}>Logout</button>
         </nav>

@@ -8,7 +8,6 @@ import {
   FaChevronLeft, 
   FaChevronRight, 
   FaTrashAlt,
-  FaArchive,
   FaCalendarCheck,
   FaUserTie,
   FaInbox 
@@ -19,7 +18,7 @@ const Minutes = () => {
   
   // --- States ---
   const [documents, setDocuments] = useState([]);
-  const [hearings, setHearings] = useState([]); // Loaded from Activity Log
+  const [hearings, setHearings] = useState([]); 
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("select");
   const [showModal, setShowModal] = useState(false);
@@ -28,7 +27,7 @@ const Minutes = () => {
   const [isSelectionMode, setIsSelectionMode] = useState(false); 
   const itemsPerPage = 12;
 
-  // --- Real-time Logic (Kept) ---
+  // --- Real-time Logic ---
   const getRelativeTime = (timestamp) => {
     const now = new Date();
     const uploadedAt = new Date(timestamp);
@@ -49,7 +48,7 @@ const Minutes = () => {
     return () => clearInterval(interval);
   }, [forceUpdate]);
 
-  // --- Data Persistence Logic ---
+  // --- Data Loading ---
   useEffect(() => {
     const savedDocs = JSON.parse(localStorage.getItem("minutes_data")) || [];
     const savedHearings = JSON.parse(localStorage.getItem("hearings")) || [];
@@ -82,7 +81,6 @@ const Minutes = () => {
       id: `Minute ${nextNumber}`, 
       hearingTitle: linkedHearing.title,
       officer: linkedHearing.officer,
-      hearingDate: linkedHearing.date,
       timestamp: new Date().toISOString(),
       status: "select",
       selected: false
@@ -110,7 +108,7 @@ const Minutes = () => {
   const handleDeleteSelected = () => {
     const selectedCount = documents.filter(d => d.selected).length;
     if (selectedCount === 0) {
-      alert("Please select files first by clicking 'Select All' or enabling selection mode.");
+      alert("Please select files first.");
       return;
     }
     if (window.confirm(`Delete ${selectedCount} selected items?`)) {
@@ -135,7 +133,6 @@ const Minutes = () => {
 
   return (
     <div className="minutes-page">
-      {/* Modal Selection */}
       {showModal && (
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
           <div className="upload-modal" onClick={e => e.stopPropagation()}>
@@ -143,35 +140,19 @@ const Minutes = () => {
               <FaCalendarCheck className="modal-upload-icon" />
               <span>Link Minute to Hearing</span>
             </div>
-            
-            <p className="modal-instruction">Select a hearing from the Activity Log:</p>
-            
             <select 
               className="modal-select-dropdown" 
               value={selectedHearingId} 
               onChange={(e) => setSelectedHearingId(e.target.value)}
             >
               <option value="">-- Choose Hearing --</option>
-              {hearings.length > 0 ? (
-                hearings.map(h => (
-                  <option key={h.id} value={h.id}>
-                    {h.title} ({h.date})
-                  </option>
-                ))
-              ) : (
-                <option disabled>No hearings found</option>
-              )}
+              {hearings.map(h => (
+                <option key={h.id} value={h.id}>{h.title} ({h.date})</option>
+              ))}
             </select>
-
             <div className="modal-actions">
               <button className="modal-btn-cancel" onClick={() => setShowModal(false)}>Cancel</button>
-              <button 
-                className="modal-btn-create" 
-                onClick={handleCreateFromHearing}
-                disabled={!selectedHearingId}
-              >
-                Create Entry
-              </button>
+              <button className="modal-btn-create" onClick={handleCreateFromHearing} disabled={!selectedHearingId}>Create Entry</button>
             </div>
           </div>
         </div>
@@ -192,18 +173,22 @@ const Minutes = () => {
             onChange={(e) => setSearchTerm(e.target.value)} 
           />
         </div>
+
         <div className="button-group">
           <button className="btn-add" onClick={() => setShowModal(true)}>ADD MINUTE</button>
-          <button 
-            className={`btn-select ${isSelectionMode ? "active-mode" : ""}`} 
-            onClick={() => {
-              setIsSelectionMode(!isSelectionMode);
-              if (!isSelectionMode) handleSelectAll();
-            }}
-          >
-            {isSelectionMode ? "EXIT SELECT" : "SELECT ALL"}
-          </button>
-          <button className="btn-delete" onClick={handleDeleteSelected}>DELETE</button>
+          
+          <div className="bulk-actions-group">
+            <button 
+              className={`btn-select ${isSelectionMode ? "active-mode" : ""}`} 
+              onClick={() => {
+                setIsSelectionMode(!isSelectionMode);
+                if (!isSelectionMode) handleSelectAll();
+              }}
+            >
+              {isSelectionMode ? "EXIT SELECT" : "SELECT ALL"}
+            </button>
+            <button className="btn-delete" onClick={handleDeleteSelected}>DELETE</button>
+          </div>
         </div>
       </div>
 
@@ -225,13 +210,7 @@ const Minutes = () => {
                 <div 
                   key={doc.id} 
                   className={`document-card ${doc.selected ? "is-selected" : ""}`} 
-                  onClick={() => {
-                    if (isSelectionMode) {
-                      toggleSelect(doc.id);
-                    } else {
-                      navigate(`/minutes-info/${doc.id}`, { state: { rfaData: doc } });
-                    }
-                  }}
+                  onClick={() => isSelectionMode ? toggleSelect(doc.id) : navigate(`/minutes-info/${doc.id}`, { state: { rfaData: doc } })}
                 >
                   <div className="card-left">
                     <FaFileAlt className={`doc-icon ${doc.status}`} />
@@ -248,7 +227,6 @@ const Minutes = () => {
                     <FaEllipsisV className="doc-options" />
                     <div className="dropdown-menu">
                       <button onClick={() => navigate(`/minutes-info/${doc.id}`)}><FaFileAlt /> View Details</button>
-                      <button onClick={() => alert("Archive " + doc.id)}><FaArchive /> Archive</button>
                       <button className="delete-opt" onClick={() => setDocuments(prev => prev.filter(d => d.id !== doc.id))}><FaTrashAlt /> Delete</button>
                     </div>
                   </div>
@@ -259,30 +237,18 @@ const Minutes = () => {
             <div className="empty-state-container">
               <FaInbox className="empty-icon" />
               <h3>No Minutes Recorded</h3>
-              <p>It looks like there are no minutes recorded yet. Click <strong>ADD MINUTE</strong> to link a proceeding from the Activity Log.</p>
+              <p>Click <strong>ADD MINUTE</strong> to link a proceeding from the Activity Log.</p>
             </div>
           )}
         </div>
 
         <footer className="grid-footer">
           <div className="pagination-controls">
-            <FaChevronLeft 
-              className={`arrow ${currentPage === 1 ? 'disabled' : ''}`} 
-              onClick={() => setCurrentPage(p => Math.max(1, p - 1))} 
-            />
+            <FaChevronLeft className={`arrow ${currentPage === 1 ? 'disabled' : ''}`} onClick={() => setCurrentPage(p => Math.max(1, p - 1))} />
             {[...Array(totalPages)].map((_, i) => (
-              <span 
-                key={i} 
-                className={`page-num ${currentPage === i + 1 ? 'active' : ''}`} 
-                onClick={() => setCurrentPage(i + 1)}
-              >
-                {i + 1}
-              </span>
+              <span key={i} className={`page-num ${currentPage === i + 1 ? 'active' : ''}`} onClick={() => setCurrentPage(i + 1)}>{i + 1}</span>
             ))}
-            <FaChevronRight 
-              className={`arrow ${currentPage === totalPages ? 'disabled' : ''}`} 
-              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} 
-            />
+            <FaChevronRight className={`arrow ${currentPage === totalPages ? 'disabled' : ''}`} onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} />
           </div>
         </footer>
       </div>

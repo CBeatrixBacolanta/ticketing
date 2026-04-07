@@ -6,7 +6,6 @@ import SideBar from './pages/SideBar';
 import Dashboard from './pages/Dashboard';
 import Notifications from './pages/Notifications';
 import ToastNotif from './pages/ToastNotif';
-import Reports from './pages/Reports';
 import Settings from './pages/Settings';
 import EditProfile from './pages/EditProfile';
 import Remarks from './pages/Remarks';
@@ -174,7 +173,6 @@ function App() {
             
             <Route path="/schedule" element={<MainSched triggerToast={triggerToast} />} />
             <Route path="/remarks/:id" element={<Remarks />} />
-            <Route path="/reports" element={<Reports />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/edit-profile" element={<EditProfile user={user} onSave={handleUpdateUser} />} />
             <Route path="/login" element={<div>Login Page</div>} />
