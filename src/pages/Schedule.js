@@ -26,6 +26,7 @@ const Schedule = ({ hideHeader, onSuccess, triggerToast }) => {
   const [showLog, setShowLog] = useState(false);
   const [showPartyModal, setShowPartyModal] = useState(false);
   const [showConfirmExit, setShowConfirmExit] = useState(false);
+  const [activePartyType, setActivePartyType] = useState(null); // 'req' or 'res'
   
   // Calendar & Time States
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -63,9 +64,9 @@ const Schedule = ({ hideHeader, onSuccess, triggerToast }) => {
 
   useEffect(() => {
     const loadData = () => {
-      const loggedInUser = JSON.parse(localStorage.getItem('currentUser'));
-      if (loggedInUser) {
-        const fullName = `${toTitleCase(loggedInUser.firstName || "")} ${loggedInUser.middleInitial ? loggedInUser.middleInitial.toUpperCase() + '.' : ""} ${toTitleCase(loggedInUser.lastName || "")}`.trim();
+      const savedUser = JSON.parse(localStorage.getItem('user'));
+      if (savedUser) {
+        const fullName = `${toTitleCase(savedUser.firstName || "")} ${savedUser.middleInitial ? savedUser.middleInitial.toUpperCase() + '.' : ""} ${toTitleCase(savedUser.lastName || "")}`.trim();
         setFormData(prev => ({ ...prev, officer: fullName }));
       }
     };
@@ -116,16 +117,16 @@ const Schedule = ({ hideHeader, onSuccess, triggerToast }) => {
   };
 
   const handleCloseIconClick = () => {
-    const hasReq = requestingParties.some(n => n.trim() !== "");
-    const hasRes = respondingParties.some(n => n.trim() !== "");
-    if (!hasReq || !hasRes) toast.error("Please ensure all parties are named.");
+    const listToCheck = activePartyType === 'req' ? requestingParties : respondingParties;
+    const hasContent = listToCheck.some(n => n.trim() !== "");
+    if (!hasContent) toast.error("Please ensure the party is named.");
     else setShowPartyModal(false);
   };
 
   const handleModalSave = () => {
-    const hasReq = requestingParties.some(n => n.trim() !== "");
-    const hasRes = respondingParties.some(n => n.trim() !== "");
-    if (!hasReq || !hasRes) { toast.warn("Parties cannot be empty."); return; }
+    const listToCheck = activePartyType === 'req' ? requestingParties : respondingParties;
+    const hasContent = listToCheck.some(n => n.trim() !== "");
+    if (!hasContent) { toast.warn("Party name cannot be empty."); return; }
     setShowPartyModal(false);
   };
 
@@ -142,7 +143,7 @@ const Schedule = ({ hideHeader, onSuccess, triggerToast }) => {
     const validReq = requestingParties.filter(n => n.trim() !== "");
     const validRes = respondingParties.filter(n => n.trim() !== "");
     if (!formData.purpose || validReq.length === 0 || validRes.length === 0) {
-      toast.warn("Please complete the purpose and ensure all parties are named.");
+      toast.warn("Please complete the purpose and ensure both parties are named.");
       return;
     }
     const combinedTime = `${formatTimeToAmPm(startTime)} to ${formatTimeToAmPm(endTime)}`;
@@ -161,6 +162,7 @@ const Schedule = ({ hideHeader, onSuccess, triggerToast }) => {
       status: "Scheduled", 
       date: `${formData.selectedMonth.substring(0, 3).toUpperCase()} ${formData.selectedDay}`,
       monthName: formData.selectedMonth,
+      year: currentDate.getFullYear(),
       dow: selectedDateObj.toLocaleDateString('en-US', { weekday: 'long' })
     };
     
@@ -200,7 +202,7 @@ const Schedule = ({ hideHeader, onSuccess, triggerToast }) => {
         <div className="modal-overlay">
           <div className="party-modal">
             <div className="modal-header">
-              <h3>{showConfirmExit ? "Confirm Exit" : "Manage Parties"}</h3>
+              <h3>{showConfirmExit ? "Confirm Exit" : `Manage ${activePartyType === 'req' ? 'Requesting' : 'Responding'} Party`}</h3>
               {!showConfirmExit && <FaTimes className="close-icon" onClick={handleCloseIconClick} />}
             </div>
             <div className="modal-body">
@@ -216,30 +218,36 @@ const Schedule = ({ hideHeader, onSuccess, triggerToast }) => {
                 </div>
               ) : (
                 <>
-                  <div className="party-section-box">
-                    <h4 className="party-section-title">Requesting Party</h4>
-                    <div className="party-list-scroll-container">
-                      {requestingParties.map((name, index) => (
-                        <div key={index} className="party-input-row">
-                          <input type="text" placeholder="Insert name" value={name} onChange={(e) => handlePartyNameChange('req', index, e.target.value)} />
-                          <button className="party-delete-btn" onClick={() => handleRemoveParty('req', index)}><FaTrash /></button>
-                        </div>
-                      ))}
+                  {activePartyType === 'req' && (
+                    <div className="party-section-box">
+                      <h4 className="party-section-title">Requesting Party</h4>
+                      <div className="party-list-scroll-container">
+                        {requestingParties.map((name, index) => (
+                          <div key={index} className="party-input-row">
+                            <input type="text" placeholder="Insert name" value={name} onChange={(e) => handlePartyNameChange('req', index, e.target.value)} />
+                            <button className="party-delete-btn" onClick={() => handleRemoveParty('req', index)}><FaTrash /></button>
+                          </div>
+                        ))}
+                      </div>
+                      <button className="add-another-btn" onClick={() => handleAddParty('req')}><FaPlus /> Add Another</button>
                     </div>
-                    <button className="add-another-btn" onClick={() => handleAddParty('req')}><FaPlus /> Add Another</button>
-                  </div>
-                  <div className="party-section-box">
-                    <h4 className="party-section-title">Responding Party</h4>
-                    <div className="party-list-scroll-container">
-                      {respondingParties.map((name, index) => (
-                        <div key={index} className="party-input-row">
-                          <input type="text" placeholder="Insert name" value={name} onChange={(e) => handlePartyNameChange('res', index, e.target.value)} />
-                          <button className="party-delete-btn" onClick={() => handleRemoveParty('res', index)}><FaTrash /></button>
-                        </div>
-                      ))}
+                  )}
+
+                  {activePartyType === 'res' && (
+                    <div className="party-section-box">
+                      <h4 className="party-section-title">Responding Party</h4>
+                      <div className="party-list-scroll-container">
+                        {respondingParties.map((name, index) => (
+                          <div key={index} className="party-input-row">
+                            <input type="text" placeholder="Insert name" value={name} onChange={(e) => handlePartyNameChange('res', index, e.target.value)} />
+                            <button className="party-delete-btn" onClick={() => handleRemoveParty('res', index)}><FaTrash /></button>
+                          </div>
+                        ))}
+                      </div>
+                      <button className="add-another-btn" onClick={() => handleAddParty('res')}><FaPlus /> Add Another</button>
                     </div>
-                    <button className="add-another-btn" onClick={() => handleAddParty('res')}><FaPlus /> Add Another</button>
-                  </div>
+                  )}
+                  
                   <div className="modal-footer-dual">
                     <button className="modal-cancel-btn" onClick={() => setShowConfirmExit(true)}>Cancel</button>
                     <button className="modal-save-btn-small" onClick={handleModalSave}>Save</button>
@@ -263,11 +271,11 @@ const Schedule = ({ hideHeader, onSuccess, triggerToast }) => {
           <div className="row-group">
             <div className="input-group">
               <label>Requesting Party:</label>
-              <button className="manage-party-trigger" onClick={() => setShowPartyModal(true)}>Manage Party</button>
+              <button className="manage-party-trigger" onClick={() => { setActivePartyType('req'); setShowPartyModal(true); }}>Manage Party</button>
             </div>
             <div className="input-group">
               <label>Responding Party:</label>
-              <button className="manage-party-trigger" onClick={() => setShowPartyModal(true)}>Manage Party</button>
+              <button className="manage-party-trigger" onClick={() => { setActivePartyType('res'); setShowPartyModal(true); }}>Manage Party</button>
             </div>
           </div>
 
