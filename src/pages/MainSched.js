@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import '../styles/MainSched.css';
 import ActivityLog from './ActivityLog'; 
 import DetailedScheduleForm from './Schedule'; 
@@ -15,30 +15,45 @@ const MainSched = ({ triggerToast }) => {
   const [showLog, setShowLog] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   
-  // 1. Pull the actual real-time date from the device on load
+  // Real-time device date
   const [now, setNow] = useState(new Date()); 
   
-  // 2. Initialize the calendar view and selected day based on the device date
+  // Calendar view state
   const [currentDate, setCurrentDate] = useState(new Date()); 
   const [selectedDay, setSelectedDay] = useState(new Date().getDate()); 
   
   const [meetings, setMeetings] = useState([]);
 
-  // Keep 'now' updated every minute so the meeting filter stays reactive
+  // Keep 'now' updated every minute so meetings disappear in real-time
   useEffect(() => {
     const timer = setInterval(() => setNow(new Date()), 60000);
     return () => clearInterval(timer);
   }, []);
 
+  // Memoized load function to prevent unnecessary re-renders
+  const loadMeetings = useCallback(() => {
+    const saved = localStorage.getItem('hearings');
+    if (saved) {
+      setMeetings(JSON.parse(saved));
+    } else {
+      setMeetings([]); // Clear state if nothing is found
+    }
+  }, []);
+
   useEffect(() => {
-    const loadMeetings = () => {
-      const saved = localStorage.getItem('hearings');
-      if (saved) setMeetings(JSON.parse(saved));
-    };
     loadMeetings();
+
+    // 1. Refresh data when the user clicks back from Activity Log (Focus)
+    window.addEventListener('focus', loadMeetings);
+    
+    // 2. Listen for changes from other tabs/windows
     window.addEventListener('storage', loadMeetings);
-    return () => window.removeEventListener('storage', loadMeetings);
-  }, [isCreating]);
+
+    return () => {
+      window.removeEventListener('focus', loadMeetings);
+      window.removeEventListener('storage', loadMeetings);
+    };
+  }, [isCreating, loadMeetings, showLog]); // Re-run when showLog changes to catch the "Back" action
 
   const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
   const year = currentDate.getFullYear();
@@ -49,9 +64,10 @@ const MainSched = ({ triggerToast }) => {
   const firstDayIndex = new Date(year, month, 1).getDay();
   const startingOffset = firstDayIndex === 0 ? 6 : firstDayIndex - 1;
 
-  // 3. REAL-TIME FILTER LOGIC
+  // REAL-TIME FILTER LOGIC
   const filteredMeetings = useMemo(() => {
     return meetings.filter(m => {
+      // 1. Basic Day/Month/Year Filter
       const meetingDay = parseInt(m.day);
       const isSameDay = meetingDay === selectedDay;
       const isSameMonth = m.date?.toUpperCase().includes(monthName.substring(0, 3).toUpperCase());
@@ -59,18 +75,16 @@ const MainSched = ({ triggerToast }) => {
 
       if (!isSameDay || !isSameMonth || !isSameYear) return false;
 
+      // 2. "Disappear after period ends" Logic
       try {
-        const [timeStr, modifier] = m.time.split(' ');
-        let [hours, minutes] = timeStr.split(':');
-        hours = parseInt(hours, 10);
-        minutes = parseInt(minutes, 10);
+        const [timePart, modifier] = m.time.split(' ');
+        let [hours, minutes] = timePart.split(':').map(Number);
 
-        if (hours === 12 && modifier === 'AM') hours = 0;
-        if (hours !== 12 && modifier === 'PM') hours += 12;
+        if (modifier === 'PM' && hours !== 12) hours += 12;
+        if (modifier === 'AM' && hours === 12) hours = 0;
 
         const meetingDateTime = new Date(year, month, meetingDay, hours, minutes);
-
-        // This ensures a meeting at 9:00 AM disappears if the device clock says 9:01 AM
+        
         return meetingDateTime > now; 
       } catch (e) {
         return true; 
@@ -78,7 +92,10 @@ const MainSched = ({ triggerToast }) => {
     });
   }, [meetings, selectedDay, monthName, month, year, now]);
 
-  if (showLog) return <ActivityLog onBack={() => setShowLog(false)} />;
+  if (showLog) return <ActivityLog onBack={() => {
+    setShowLog(false);
+    loadMeetings(); // Force a refresh when closing the log
+  }} />;
 
   return (
     <div className="schedule-outer-container">
@@ -90,7 +107,7 @@ const MainSched = ({ triggerToast }) => {
             </button>
           )}
           <div className="header-text">
-            <h1>Schedule a Meeting</h1>
+            <h1>{isCreating ? "New Schedule" : "Schedule a Meeting"}</h1>
             {!isCreating && <p>Agenda for {monthName} {selectedDay}, {year}</p>}
           </div>
         </div>
@@ -105,7 +122,10 @@ const MainSched = ({ triggerToast }) => {
         {isCreating ? (
           <DetailedScheduleForm 
             hideHeader={true} 
-            onSuccess={() => setIsCreating(false)} 
+            onSuccess={() => {
+              setIsCreating(false);
+              loadMeetings(); 
+            }} 
             triggerToast={triggerToast} 
           />
         ) : (
@@ -116,7 +136,7 @@ const MainSched = ({ triggerToast }) => {
                 <div className="meetings-list scrollable-agenda">
                   {filteredMeetings.length > 0 ? (
                     filteredMeetings.map((item) => {
-                      const monthBadge = item.date ? item.date.substring(0, 3).toUpperCase() : "MAR";
+                      const monthBadge = item.date ? item.date.substring(0, 3).toUpperCase() : "---";
                       return (
                         <div key={item.id} className="meeting-row">
                           <span className="time-label">{item.time}</span>
@@ -138,7 +158,7 @@ const MainSched = ({ triggerToast }) => {
                     })
                   ) : (
                     <div className="no-meetings-placeholder">
-                      <p>No more upcoming meetings scheduled for this day.</p>
+                      <p>No more upcoming meetings for this day.</p>
                     </div>
                   )}
                 </div>

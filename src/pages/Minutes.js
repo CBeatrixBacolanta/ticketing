@@ -1,6 +1,10 @@
 import React, { useState, useEffect, useCallback } from "react";
-import { useNavigate } from "react-router-dom"; 
+import { useNavigate, useLocation } from "react-router-dom"; 
 import "../styles/Minutes.css";
+
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+
 import { 
   FaSearch, 
   FaFileAlt, 
@@ -8,35 +12,64 @@ import {
   FaChevronLeft, 
   FaChevronRight, 
   FaTrashAlt,
+  FaArchive,
   FaCalendarCheck,
-  FaUserTie,
+  FaUserTie, 
   FaInbox 
 } from "react-icons/fa";
 
 const Minutes = () => {
   const navigate = useNavigate(); 
+  const location = useLocation();
   
-  // --- States ---
-  const [documents, setDocuments] = useState([]);
-  const [hearings, setHearings] = useState([]); 
+  const [documents, setDocuments] = useState(() => {
+    const saved = localStorage.getItem("allMinutesFiles");
+    return saved ? JSON.parse(saved) : [];
+  });
+
+  const [hearings] = useState(() => {
+    const saved = localStorage.getItem("hearings");
+    return saved ? JSON.parse(saved) : [];
+  });
+
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterStatus, setFilterStatus] = useState("select");
+  const [filterStatus, setFilterStatus] = useState("all"); 
   const [showModal, setShowModal] = useState(false);
   const [selectedHearingId, setSelectedHearingId] = useState(""); 
   const [currentPage, setCurrentPage] = useState(1);
   const [isSelectionMode, setIsSelectionMode] = useState(false); 
+  const [highlightId, setHighlightId] = useState(null); 
   const itemsPerPage = 12;
 
-  // --- Real-time Logic ---
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const idToHighlight = params.get('highlight');
+
+    if (idToHighlight && documents.length > 0) {
+      const itemIndex = documents.findIndex(d => String(d.id) === String(idToHighlight));
+      if (itemIndex !== -1) {
+        const targetPage = Math.ceil((itemIndex + 1) / itemsPerPage);
+        setCurrentPage(targetPage);
+        setHighlightId(idToHighlight);
+
+        const timer = setTimeout(() => {
+          setHighlightId(null); 
+          navigate('/minutes', { replace: true }); 
+        }, 1000);
+
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [location.search, documents, navigate]);
+
   const getRelativeTime = (timestamp) => {
+    if (!timestamp) return "N/A";
     const now = new Date();
     const uploadedAt = new Date(timestamp);
     const diffInSeconds = Math.floor((now - uploadedAt) / 1000);
-    if (diffInSeconds < 60) return "Uploaded just now";
+    if (diffInSeconds < 60) return "Just now";
     const diffInMinutes = Math.floor(diffInSeconds / 60);
-    if (diffInMinutes < 60) return `Uploaded ${diffInMinutes} min ago`;
-    const diffInHours = Math.floor(diffInMinutes / 60);
-    if (diffInHours < 24) return `Uploaded ${diffInHours} hours ago`;
+    if (diffInMinutes < 60) return `${diffInMinutes} min ago`;
     return uploadedAt.toLocaleDateString();
   };
 
@@ -48,111 +81,113 @@ const Minutes = () => {
     return () => clearInterval(interval);
   }, [forceUpdate]);
 
-  // --- Data Loading ---
   useEffect(() => {
-    const savedDocs = JSON.parse(localStorage.getItem("minutes_data")) || [];
-    const savedHearings = JSON.parse(localStorage.getItem("hearings")) || [];
-    setDocuments(savedDocs);
-    setHearings(savedHearings);
-  }, []);
-
-  useEffect(() => {
-    localStorage.setItem("minutes_data", JSON.stringify(documents));
+    localStorage.setItem("allMinutesFiles", JSON.stringify(documents));
   }, [documents]);
 
-  // --- Handlers ---
-  const handleCreateFromHearing = () => {
-    if (!selectedHearingId) {
-      alert("Please select a hearing first.");
-      return;
-    }
-
-    const linkedHearing = hearings.find(h => h.id.toString() === selectedHearingId.toString());
+  const filteredDocs = documents.filter(doc => {
+    const searchStr = searchTerm.toLowerCase();
+    const matchesSearch = 
+        String(doc.id).toLowerCase().includes(searchStr) ||
+        (doc.hearingTitle && doc.hearingTitle.toLowerCase().includes(searchStr)) ||
+        (doc.docketNo && doc.docketNo.toLowerCase().includes(searchStr));
     
-    // Auto-increment "Minute <n>" logic
-    const minuteNumbers = documents
-      .map(doc => {
-        const match = doc.id.match(/Minute (\d+)/);
-        return match ? parseInt(match[1]) : 0;
-      });
-    const nextNumber = minuteNumbers.length > 0 ? Math.max(...minuteNumbers) + 1 : 1;
+    const currentStatus = doc.status?.toLowerCase() || "pending";
+    const matchesFilter = filterStatus === "all" || currentStatus === filterStatus.toLowerCase();
+    
+    return matchesSearch && matchesFilter;
+  });
 
+  const handleSelectToggle = () => {
+    const allVisibleSelected = filteredDocs.length > 0 && filteredDocs.every(d => d.selected);
+    if (!isSelectionMode) {
+      setIsSelectionMode(true);
+    } else if (allVisibleSelected) {
+      setDocuments(prev => prev.map(doc => {
+        const isVisible = filteredDocs.some(v => v.id === doc.id);
+        return isVisible ? { ...doc, selected: false } : doc;
+      }));
+    } else {
+      setDocuments(prev => prev.map(doc => {
+        const isVisible = filteredDocs.some(v => v.id === doc.id);
+        return isVisible ? { ...doc, selected: true } : doc;
+      }));
+    }
+  };
+
+  const handleCreateFromHearing = () => {
+    if (!selectedHearingId) return;
+    
+    const linkedHearing = hearings.find(h => h.id.toString() === selectedHearingId.toString());
+    const alreadyExists = documents.some(doc => doc.hearingTitle === linkedHearing.title);
+
+    if (alreadyExists) {
+      toast.warning(`Alert: A minute for "${linkedHearing.title}" already exists.`);
+      return; 
+    }
+    
+    const nextNumber = documents.length > 0 
+      ? Math.max(...documents.map(d => {
+          const num = parseInt(String(d.id).replace(/\D/g, ''));
+          return isNaN(num) ? 0 : num;
+        })) + 1 
+      : 1;
+    
     const newFile = {
-      id: `Minute ${nextNumber}`, 
+      id: nextNumber,
+      docketNo: "", 
+      matter: linkedHearing.title,
       hearingTitle: linkedHearing.title,
-      officer: linkedHearing.officer,
+      officer: linkedHearing.officer || "N/A",
       timestamp: new Date().toISOString(),
-      status: "select",
-      selected: false
+      status: "Pending", 
+      selected: false,
+      conferences: [] 
     };
 
-    setDocuments(prev => [newFile, ...prev]);
-    setSelectedHearingId("");
+    const updatedDocs = [newFile, ...documents];
+    setDocuments(updatedDocs);
+    localStorage.setItem("allMinutesFiles", JSON.stringify(updatedDocs)); // Sync immediate
     setShowModal(false);
-  };
-
-  const toggleSelect = (id) => {
-    setDocuments(prev => prev.map(doc => 
-      doc.id === id ? { ...doc, selected: !doc.selected } : doc
-    ));
-  };
-
-  const handleSelectAll = () => {
-    const allSelected = filteredDocs.every(doc => doc.selected);
-    setDocuments(prev => prev.map(doc => {
-      const isFiltered = filteredDocs.find(f => f.id === doc.id);
-      return isFiltered ? { ...doc, selected: !allSelected } : doc;
-    }));
+    setSelectedHearingId("");
+    toast.success("Minute created!");
   };
 
   const handleDeleteSelected = () => {
     const selectedCount = documents.filter(d => d.selected).length;
-    if (selectedCount === 0) {
-      alert("Please select files first.");
-      return;
-    }
-    if (window.confirm(`Delete ${selectedCount} selected items?`)) {
-      setDocuments(prev => prev.filter(doc => !doc.selected));
-      setIsSelectionMode(false);
-    }
+    if (selectedCount === 0) return;
+    
+    const updatedDocs = documents.filter(doc => !doc.selected);
+    setDocuments(updatedDocs);
+    localStorage.setItem("allMinutesFiles", JSON.stringify(updatedDocs)); // Sync immediate
+    
+    setIsSelectionMode(false);
+    toast.info(`Deleted ${selectedCount} items.`);
   };
 
-  // --- Search & Filter Logic ---
-  const filteredDocs = documents.filter(doc => {
-    const matchesSearch = 
-      doc.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (doc.hearingTitle && doc.hearingTitle.toLowerCase().includes(searchTerm.toLowerCase()));
-    const matchesFilter = filterStatus === "select" || doc.status === filterStatus;
-    return matchesSearch && matchesFilter;
-  });
-
-  const indexOfLastItem = currentPage * itemsPerPage;
-  const indexOfFirstItem = indexOfLastItem - itemsPerPage;
-  const currentItems = filteredDocs.slice(indexOfFirstItem, indexOfLastItem);
+  const currentItems = filteredDocs.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
   const totalPages = Math.max(1, Math.ceil(filteredDocs.length / itemsPerPage));
 
   return (
     <div className="minutes-page">
+      <ToastContainer position="top-right" autoClose={3000} theme="colored" />
+
       {showModal && (
         <div className="modal-overlay" onClick={() => setShowModal(false)}>
           <div className="upload-modal" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
+            <div className="modal-header-box">
               <FaCalendarCheck className="modal-upload-icon" />
               <span>Link Minute to Hearing</span>
             </div>
-            <select 
-              className="modal-select-dropdown" 
-              value={selectedHearingId} 
-              onChange={(e) => setSelectedHearingId(e.target.value)}
-            >
-              <option value="">-- Choose Hearing --</option>
-              {hearings.map(h => (
-                <option key={h.id} value={h.id}>{h.title} ({h.date})</option>
-              ))}
-            </select>
-            <div className="modal-actions">
-              <button className="modal-btn-cancel" onClick={() => setShowModal(false)}>Cancel</button>
-              <button className="modal-btn-create" onClick={handleCreateFromHearing} disabled={!selectedHearingId}>Create Entry</button>
+            <div className="modal-body">
+              <select className="modal-select-dropdown" value={selectedHearingId} onChange={(e) => setSelectedHearingId(e.target.value)}>
+                <option value="">-- Choose Hearing --</option>
+                {hearings.map(h => <option key={h.id} value={h.id}>{h.title}</option>)}
+              </select>
+              <div className="modal-actions">
+                <button className="modal-btn-cancel" onClick={() => setShowModal(false)}>Cancel</button>
+                <button className="modal-btn-create" onClick={handleCreateFromHearing} disabled={!selectedHearingId}>Create</button>
+              </div>
             </div>
           </div>
         </div>
@@ -163,43 +198,35 @@ const Minutes = () => {
         <p>View, manage, and track all client session minutes.</p>
       </header>
 
-      <div className="action-bar">
-        <div className="search-container">
-          <FaSearch className="search-icon" />
+      <div className="horizontal-action-bar">
+        <div className="search-box-wrapper">
+          <FaSearch className="search-icon-fixed" />
           <input 
             type="text" 
-            placeholder="Search by Minute # or Title..." 
+            placeholder="Search by Docket # or Title..." 
             value={searchTerm} 
             onChange={(e) => setSearchTerm(e.target.value)} 
           />
         </div>
 
-        <div className="button-group">
-          <button className="btn-add" onClick={() => setShowModal(true)}>ADD MINUTE</button>
-          
-          <div className="bulk-actions-group">
-            <button 
-              className={`btn-select ${isSelectionMode ? "active-mode" : ""}`} 
-              onClick={() => {
-                setIsSelectionMode(!isSelectionMode);
-                if (!isSelectionMode) handleSelectAll();
-              }}
-            >
-              {isSelectionMode ? "EXIT SELECT" : "SELECT ALL"}
-            </button>
-            <button className="btn-delete" onClick={handleDeleteSelected}>DELETE</button>
-          </div>
+        <div className="filter-inline-container">
+          <span className="filter-label-text">Filter By:</span>
+          <select className="filter-select-box" value={filterStatus} onChange={(e) => { setFilterStatus(e.target.value); setCurrentPage(1); }}>
+            <option value="all">All Status</option>
+            <option value="Settled">Settled</option>
+            <option value="Partial">Partial</option>
+            <option value="Lack of Interest">Lack of Interest</option>
+            <option value="Approval for Endorsement">Approval</option>
+          </select>
         </div>
-      </div>
 
-      <div className="filter-container">
-        <span className="filter-label">Filter By:</span>
-        <select className="filter-dropdown" value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
-          <option value="select">All Status</option>
-          <option value="settled">Settled</option>
-          <option value="lack_of_interest">Lack of Interest</option>
-          <option value="approval">Approval for Indorsement</option>
-        </select>
+        <div className="button-actions-group">
+          <button className="btn-add-fixed" onClick={() => setShowModal(true)}>ADD MINUTE</button>
+          <button className={`btn-select-fixed ${isSelectionMode ? "active-mode" : ""}`} onClick={handleSelectToggle}>
+            {!isSelectionMode ? "SELECT" : (filteredDocs.every(d => d.selected) && filteredDocs.length > 0 ? "DESELECT ALL" : "SELECT ALL")}
+          </button>
+          <button className="btn-delete-fixed" onClick={handleDeleteSelected} disabled={!documents.some(d => d.selected)}>DELETE</button>
+        </div>
       </div>
 
       <div className="grid-container-fixed">
@@ -209,25 +236,34 @@ const Minutes = () => {
               {currentItems.map((doc) => (
                 <div 
                   key={doc.id} 
-                  className={`document-card ${doc.selected ? "is-selected" : ""}`} 
-                  onClick={() => isSelectionMode ? toggleSelect(doc.id) : navigate(`/minutes-info/${doc.id}`, { state: { rfaData: doc } })}
+                  className={`document-card ${doc.selected ? "is-selected" : ""} ${String(doc.id) === String(highlightId) ? "glow-highlight" : ""}`} 
+                  onClick={() => isSelectionMode ? setDocuments(prev => prev.map(d => d.id === doc.id ? {...d, selected: !d.selected} : d)) : navigate(`/minutes-info/${doc.id}`)}
                 >
                   <div className="card-left">
-                    <FaFileAlt className={`doc-icon ${doc.status}`} />
+                    <FaFileAlt className={`doc-icon ${doc.status?.replace(/\s+/g, '-').toLowerCase()}`} />
                     <div className="doc-details">
-                      <span className="doc-id">{doc.id}</span>
+                      <span className="doc-id">{doc.docketNo || `Minute ${doc.id}`}</span>
                       <div className="doc-meta-info">
                         <span className="hearing-subtext">{doc.hearingTitle}</span>
-                        <span><FaUserTie /> {doc.officer}</span>
-                        <span>{getRelativeTime(doc.timestamp)}</span>
+                        <div className="meta-row">
+                          <span><FaUserTie /> {doc.officer}</span>
+                          <span className="time-stamp">{getRelativeTime(doc.timestamp)}</span>
+                        </div>
                       </div>
                     </div>
                   </div>
                   <div className="options-menu" onClick={(e) => e.stopPropagation()}>
                     <FaEllipsisV className="doc-options" />
                     <div className="dropdown-menu">
-                      <button onClick={() => navigate(`/minutes-info/${doc.id}`)}><FaFileAlt /> View Details</button>
-                      <button className="delete-opt" onClick={() => setDocuments(prev => prev.filter(d => d.id !== doc.id))}><FaTrashAlt /> Delete</button>
+                      <button onClick={() => toast.info("Archive functionality requested.")}><FaArchive /> Archive</button>
+                      <button className="delete-opt" onClick={() => {
+                          const updated = documents.filter(d => d.id !== doc.id);
+                          setDocuments(updated);
+                          localStorage.setItem("allMinutesFiles", JSON.stringify(updated));
+                          toast.info("Minute deleted.");
+                      }}>
+                          <FaTrashAlt /> Delete
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -237,18 +273,30 @@ const Minutes = () => {
             <div className="empty-state-container">
               <FaInbox className="empty-icon" />
               <h3>No Minutes Recorded</h3>
-              <p>Click <strong>ADD MINUTE</strong> to link a proceeding from the Activity Log.</p>
+              <p>Try adjusting your search or add a new minute to get started.</p>
             </div>
           )}
         </div>
-
+        
         <footer className="grid-footer">
           <div className="pagination-controls">
-            <FaChevronLeft className={`arrow ${currentPage === 1 ? 'disabled' : ''}`} onClick={() => setCurrentPage(p => Math.max(1, p - 1))} />
+            <FaChevronLeft 
+              className={`arrow ${currentPage === 1 ? 'disabled' : ''}`} 
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))} 
+            />
             {[...Array(totalPages)].map((_, i) => (
-              <span key={i} className={`page-num ${currentPage === i + 1 ? 'active' : ''}`} onClick={() => setCurrentPage(i + 1)}>{i + 1}</span>
+              <span 
+                key={i} 
+                className={`page-num ${currentPage === i + 1 ? 'active' : ''}`} 
+                onClick={() => setCurrentPage(i + 1)}
+              >
+                {i + 1}
+              </span>
             ))}
-            <FaChevronRight className={`arrow ${currentPage === totalPages ? 'disabled' : ''}`} onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} />
+            <FaChevronRight 
+              className={`arrow ${currentPage === totalPages ? 'disabled' : ''}`} 
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} 
+            />
           </div>
         </footer>
       </div>

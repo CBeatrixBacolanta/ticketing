@@ -307,3 +307,52 @@ button:hover {
 .settings-page {
   overflow: visible !important; 
 }
+
+/* Add these to your existing Settings.css */
+
+.password-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+}
+
+.password-toggle-btn {
+    position: absolute;
+    right: 15px;
+    background: none;
+    border: none;
+    color: #666;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    font-size: 18px;
+    padding: 0;
+}
+
+.password-toggle-btn:hover {
+    color: #0072ff;
+    transform: none; /* Prevent the global button lift effect here */
+}
+
+/* Ensure the header hover looks like a back button */
+.settings-header:hover h1, 
+.settings-header:hover svg {
+    opacity: 0.8;
+}
+
+/* Adjust input padding to make room for the eye icon */
+.settings-input {
+    padding-right: 45px !important;
+}
+
+/* Mobile Fixes for footer */
+@media (max-width: 768px) {
+    .settings-action-footer {
+        flex-direction: column-reverse; /* Discard on bottom */
+        width: 100%;
+    }
+    
+    .btn-save-changes, .btn-discard-settings {
+        width: 100%;
+    }
+}

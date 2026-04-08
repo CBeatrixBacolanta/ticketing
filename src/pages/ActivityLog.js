@@ -1,93 +1,159 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom'; 
 import '../styles/ActivityLog.css';
 import { 
-  FaArrowLeft, FaTrashAlt, FaEdit, 
-  FaArchive, FaTimes, FaHistory, FaListUl, 
-  FaEllipsisV, FaBan, FaPaperPlane,
-  FaFileMedical // Icon for the Minutes button
+  FaArrowLeft, FaEdit, FaHistory, FaListUl, 
+  FaEllipsisV, FaFileAlt, FaCommentDots, FaTrashAlt,
+  FaArchive, FaTimesCircle
 } from 'react-icons/fa';
 
-const ActivityLog = ({ onBack, onEdit }) => {
-  const navigate = useNavigate();
-
+const ActivityLog = ({ onBack }) => {
   const [logs, setLogs] = useState([]);
-  const [actionTarget, setActionTarget] = useState(null);
   const [viewMode, setViewMode] = useState('active'); 
-  const [showCancelReasons, setShowCancelReasons] = useState(false);
-  const [isTypingOther, setIsTypingOther] = useState(false);
-  const [customReason, setCustomReason] = useState("");
+  const [activeMenuId, setActiveMenuId] = useState(null); 
+  
+  const [showCancelModal, setShowCancelModal] = useState(false);
+  const [selectedHearing, setSelectedHearing] = useState(null);
+  const [cancelReason, setCancelReason] = useState('');
+  const [otherReason, setOtherReason] = useState('');
 
-  const cancellationReasons = [
-    "Health Reasons", 
-    "Emergency", 
-    "Incomplete Documents", 
-    "Weather/Force Majeure"
-  ];
+  const navigate = useNavigate();
+  const dropdownRef = useRef(null);
+
+  // Close dropdown if user clicks outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setActiveMenuId(null);
+      }
+    };
+    if (activeMenuId) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [activeMenuId]);
 
   const loadLogs = useCallback(() => {
     const savedHearings = JSON.parse(localStorage.getItem('hearings')) || [];
-    const sortedLogs = [...savedHearings].sort((a, b) => b.id - a.id);
+    const savedMinutesFiles = JSON.parse(localStorage.getItem('allMinutesFiles')) || [];
+    
+    const processedLogs = [...savedHearings].sort((a, b) => b.id - a.id).map(hearing => {
+      const hasMinutes = savedMinutesFiles.some(m => m.hearingTitle === hearing.title);
+      return { ...hearing, hasMinutes };
+    });
     
     if (viewMode === 'active') {
-      setLogs(sortedLogs.filter(h => h.status?.toLowerCase() !== 'done' && h.status?.toLowerCase() !== 'cancelled'));
+      setLogs(processedLogs.filter(h => {
+        const status = h.status?.toLowerCase();
+        return status !== 'done' && status !== 'cancelled';
+      }));
     } else {
-      setLogs(sortedLogs.filter(h => h.status?.toLowerCase() === 'done' || h.status?.toLowerCase() === 'cancelled'));
+      setLogs(processedLogs.filter(h => {
+        const status = h.status?.toLowerCase();
+        return status === 'done' || status === 'cancelled';
+      }));
     }
   }, [viewMode]);
 
   useEffect(() => {
     loadLogs();
-    window.addEventListener('storage', loadLogs);
-    return () => window.removeEventListener('storage', loadLogs);
   }, [loadLogs]);
 
-  const handleFinalAction = (type, reason = null) => {
-    const saved = JSON.parse(localStorage.getItem('hearings')) || [];
-    let updated;
+  // NEW: Listener for localStorage changes from other components/tabs
+  useEffect(() => {
+    const handleStorageChange = (e) => {
+      if (e.key === 'allMinutesFiles' || e.key === 'hearings') {
+        loadLogs();
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, [loadLogs]);
 
-    if (type === 'delete') {
-      updated = saved.filter(h => h.id !== actionTarget);
-    } else if (type === 'archive') {
-      updated = saved.map(h => h.id === actionTarget ? { ...h, status: 'Done' } : h);
-    } else if (type === 'cancel') {
-      updated = saved.map(h => 
-        h.id === actionTarget ? { ...h, status: 'Cancelled', remarks: `Cancelled: ${reason}` } : h
-      );
-    }
-
-    localStorage.setItem('hearings', JSON.stringify(updated));
-    loadLogs();
-    closeModal();
+  const handleToggleMenu = (e, id) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setActiveMenuId(prevId => (prevId === id ? null : id));
   };
 
-  const closeModal = () => {
-    setActionTarget(null);
-    setShowCancelReasons(false);
-    setIsTypingOther(false);
-    setCustomReason("");
+  const handleDelete = (id) => {
+    if (window.confirm("Permanently delete this record?")) {
+      const saved = JSON.parse(localStorage.getItem('hearings')) || [];
+      const updated = saved.filter(h => h.id !== id);
+      localStorage.setItem('hearings', JSON.stringify(updated));
+      loadLogs();
+      setActiveMenuId(null);
+    }
+  };
+
+  const handleArchive = (id) => {
+    const saved = JSON.parse(localStorage.getItem('hearings')) || [];
+    const updated = saved.map(h => h.id === id ? { ...h, status: 'Done' } : h);
+    localStorage.setItem('hearings', JSON.stringify(updated));
+    loadLogs();
+    setActiveMenuId(null);
+  };
+
+  const openCancelModal = (hearing) => {
+    setSelectedHearing(hearing);
+    setShowCancelModal(true);
+    setActiveMenuId(null);
+  };
+
+  const submitCancellation = () => {
+    const finalReason = cancelReason === 'Other' ? otherReason : cancelReason;
+    if (!finalReason) return alert("Please select a reason.");
+    const saved = JSON.parse(localStorage.getItem('hearings')) || [];
+    const updated = saved.map(h => 
+      h.id === selectedHearing.id ? { ...h, status: 'Cancelled', cancelReason: finalReason } : h
+    );
+    localStorage.setItem('hearings', JSON.stringify(updated));
+    setShowCancelModal(false);
+    setCancelReason('');
+    setOtherReason('');
+    loadLogs();
   };
 
   return (
     <div className="activity-log-page">
-      <div className="log-header-section">
-        <button className="back-button" onClick={onBack}>
-          <FaArrowLeft /> Activity Log
-        </button>
+      {showCancelModal && (
+        <div className="modal-overlay" onClick={() => setShowCancelModal(false)}>
+          <div className="cancel-modal" onClick={(e) => e.stopPropagation()}>
+            <h3>Cancel Hearing</h3>
+            <p>Reason for: <strong>{selectedHearing?.title}</strong></p>
+            <div className="reason-options">
+              {['Health Problems', 'Personal Problems', 'Schedule Conflict', 'Officer Unavailable', 'Other'].map(r => (
+                <label key={r} className="reason-label">
+                  <input 
+                    type="radio" 
+                    name="reason" 
+                    value={r} 
+                    onChange={(e) => setCancelReason(e.target.value)} 
+                  /> {r}
+                </label>
+              ))}
+            </div>
+            {cancelReason === 'Other' && (
+              <input 
+                type="text" 
+                placeholder="Specify reason..." 
+                className="other-reason-input" 
+                onChange={(e) => setOtherReason(e.target.value)} 
+              />
+            )}
+            <div className="modal-footer">
+              <button className="modal-btn-secondary" onClick={() => setShowCancelModal(false)}>Back</button>
+              <button className="modal-btn-primary" onClick={submitCancellation}>Submit</button>
+            </div>
+          </div>
+        </div>
+      )}
 
+      <div className="log-header-section">
+        <button className="back-button" onClick={onBack}><FaArrowLeft /> Activity Log</button>
         <div className="view-toggle-container">
-          <button 
-            className={`toggle-btn ${viewMode === 'active' ? 'active' : ''}`} 
-            onClick={() => setViewMode('active')}
-          >
-            <FaListUl /> Active
-          </button>
-          <button 
-            className={`toggle-btn ${viewMode === 'archived' ? 'active' : ''}`} 
-            onClick={() => setViewMode('archived')}
-          >
-            <FaHistory /> Archives
-          </button>
+          <button className={`toggle-btn ${viewMode === 'active' ? 'active' : ''}`} onClick={() => setViewMode('active')}><FaListUl /> Active</button>
+          <button className={`toggle-btn ${viewMode === 'archived' ? 'active' : ''}`} onClick={() => setViewMode('archived')}><FaHistory /> Archives</button>
         </div>
       </div>
 
@@ -100,7 +166,7 @@ const ActivityLog = ({ onBack, onEdit }) => {
                 <th className="col-officer">Officer</th>
                 <th className="col-date">Date</th>
                 <th className="col-time">Time</th>
-                <th className="col-purpose">Purpose/Reason</th>
+                <th className="col-purpose">Purpose</th>
                 <th className="col-status">Status</th>
                 <th className="col-action">Action</th>
               </tr>
@@ -110,138 +176,69 @@ const ActivityLog = ({ onBack, onEdit }) => {
                 logs.map((row, index) => (
                   <tr key={row.id}>
                     <td className="col-no">{index + 1}</td>
-                    <td className="col-officer officer-name-cell">{row.officer}</td>
-                    <td className="col-date">{row.date?.toUpperCase()}</td>
+                    <td className="col-officer"><strong>{row.officer}</strong></td>
+                    <td className="col-date">{row.date}</td>
                     <td className="col-time">{row.time}</td>
-                    <td className="col-purpose purpose-cell">{row.title}</td>
+                    <td className="col-purpose">{row.title}</td>
                     <td className="col-status">
-                      <span className={`status-label-text ${row.status?.toLowerCase()}`}>
+                      <span className={`status-pill ${row.status?.toLowerCase() || 'pending'}`}>
                         {row.status || 'Pending'}
                       </span>
                     </td>
                     <td className="col-action">
-                      <div className="action-btns-wrapper">
-                        {/* Only show Minutes button if the status is Done/Archived */}
-                        {row.status?.toLowerCase() === 'done' && (
+                      {viewMode === 'active' ? (
+                        <div className="active-action-group">
                           <button 
-                            className="minutes-btn" 
-                            title="Add Minutes"
-                            onClick={() => navigate('/minutes', { state: { rfaNumber: row.title } })}
+                            className="arch-btn edit" 
+                            title="Edit"
+                            onClick={() => navigate('/schedule-form', { state: { editId: row.id } })}
                           >
-                            <FaFileMedical />
-                          </button>
-                        )}
-                        
-                        <button className="edit-btn-icon" onClick={() => onEdit(row)}>
                             <FaEdit />
-                        </button>
-                        <button 
-                            className="remark-btn" 
-                            onClick={() => navigate(`/remark/${row.id}`)}
-                        >
-                            Remark
-                        </button>
-                        <button className="more-actions-btn" onClick={() => setActionTarget(row.id)}>
-                          <FaEllipsisV />
-                        </button>
-                      </div>
+                          </button>
+                          
+                          <div className="dot-menu-container">
+                            <button 
+                              className="opt-btn-trigger" 
+                              onClick={(e) => handleToggleMenu(e, row.id)}
+                            >
+                              <FaEllipsisV />
+                            </button>
+                            
+                            {activeMenuId === row.id && (
+                              <div className="dropdown-menu show" ref={dropdownRef}>
+                                <button onClick={() => handleArchive(row.id)} className="drop-item archive"><FaArchive /> Archive</button>
+                                <button onClick={() => openCancelModal(row)} className="drop-item cancel"><FaTimesCircle /> Cancel</button>
+                                <button onClick={() => handleDelete(row.id)} className="drop-item delete"><FaTrashAlt /> Delete</button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="archive-actions-group">
+                          <button className="arch-btn remark" title="View Remarks" onClick={() => navigate(`/remarks/${row.id}`)}><FaCommentDots /></button>
+                          
+                          <button 
+                            className={`arch-btn minutes ${row.hasMinutes ? 'exists' : 'empty'} ${row.status === 'Cancelled' ? 'disabled' : ''}`} 
+                            onClick={() => row.status !== 'Cancelled' && navigate('/minutes')}
+                            disabled={row.status === 'Cancelled'}
+                            title={row.status === 'Cancelled' ? "Minutes unavailable" : "View Minutes"}
+                          >
+                            <FaFileAlt />
+                          </button>
+
+                          <button className="arch-btn delete" title="Delete" onClick={() => handleDelete(row.id)}><FaTrashAlt /></button>
+                        </div>
+                      )}
                     </td>
                   </tr>
                 ))
               ) : (
-                <tr className="empty-row-container">
-                  <td colSpan="7">No hearings found.</td>
-                </tr>
+                <tr><td colSpan="7" className="empty-msg">No {viewMode} records found.</td></tr>
               )}
             </tbody>
           </table>
         </div>
       </div>
-
-      {/* MODAL SECTION */}
-      {actionTarget && (
-        <div className="action-overlay">
-          <div className="action-choice-card">
-            <button className="close-action-btn" onClick={closeModal}><FaTimes /></button>
-            
-            {!showCancelReasons ? (
-              <>
-                <div className="modal-header-text">
-                  <h4>Manage Activity</h4>
-                  <p>What would you like to do with this record?</p>
-                </div>
-                <div className="choice-buttons">
-                  <button className="choice-btn archive" onClick={() => handleFinalAction('archive')}>
-                    <FaArchive className="choice-icon" />
-                    <div className="choice-text">
-                      <strong>Archive</strong>
-                      <small>Mark as Done & Move to Archives</small>
-                    </div>
-                  </button>
-
-                  <button className="choice-btn cancel" onClick={() => setShowCancelReasons(true)}>
-                    <FaBan className="choice-icon" />
-                    <div className="choice-text">
-                      <strong>Cancel Schedule</strong>
-                      <small>Cancel the meeting for today</small>
-                    </div>
-                  </button>
-
-                  <button className="choice-btn delete" onClick={() => handleFinalAction('delete')}>
-                    <FaTrashAlt className="choice-icon" />
-                    <div className="choice-text">
-                      <strong>Delete</strong>
-                      <small>Remove permanently from system</small>
-                    </div>
-                  </button>
-                </div>
-              </>
-            ) : (
-              <>
-                <h4>Reason for Cancellation</h4>
-                <p>Please select a reason for cancelling this schedule.</p>
-                
-                {!isTypingOther ? (
-                  <div className="reasons-grid">
-                    {cancellationReasons.map((reason) => (
-                      <button key={reason} className="reason-select-btn" onClick={() => handleFinalAction('cancel', reason)}>
-                        {reason}
-                      </button>
-                    ))}
-                    <button className="reason-select-btn other-btn" onClick={() => setIsTypingOther(true)}>
-                      Other...
-                    </button>
-                  </div>
-                ) : (
-                  <div className="custom-reason-container">
-                    <textarea 
-                      className="custom-reason-input"
-                      placeholder="Enter specific reason for cancellation..."
-                      value={customReason}
-                      onChange={(e) => setCustomReason(e.target.value)}
-                      autoFocus
-                    />
-                    <button 
-                      className="submit-custom-btn" 
-                      onClick={() => handleFinalAction('cancel', customReason)}
-                      disabled={!customReason.trim()}
-                    >
-                      <FaPaperPlane /> Submit Cancellation
-                    </button>
-                  </div>
-                )}
-                
-                <button className="back-to-options" onClick={() => {
-                  if(isTypingOther) setIsTypingOther(false);
-                  else setShowCancelReasons(false);
-                }}>
-                  Go Back
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-      )}
     </div>
   );
 };

@@ -16,31 +16,29 @@ const Login = ({ onLogin }) => {
         e.preventDefault();
         setIsLoading(true);
 
-        // TEMPORARY OFFICER BACKDOOR
         const TEMP_OFFICER_EMAIL = "officer@test.com";
-        const TEMP_OFFICER_PASS = "pass123";
+        
+        // --- UPDATED LOGIC: CHECK FOR RESET PASSWORD FIRST ---
+        // If 'userPassword' exists in localStorage, use it. Otherwise, use 'pass123'.
+        const savedPass = localStorage.getItem('userPassword');
+        const TEMP_OFFICER_PASS = savedPass || "pass123";
 
         setTimeout(() => {
-            // 1. CHECK FOR TEMPORARY OFFICER BACKDOOR
             if (email.toLowerCase() === TEMP_OFFICER_EMAIL && password === TEMP_OFFICER_PASS && role === "Officer") {
                 const tempOfficerUser = {
-                    email: "email@email.com", // Generic first-time email
-                    firstName: "",           // Empty to trigger "User" fallback
-                    lastName: "",            // Empty to trigger "User" fallback
-                    middleInitial: "",
+                    email: "email@email.com",
+                    firstName: "Officer",
+                    lastName: "User",
                     role: "Officer",
-                    profilePic: ""           // Shows the default gray icon
+                    profilePic: ""
                 };
-                
                 localStorage.setItem('isAuthenticated', 'true');
                 localStorage.setItem('currentUser', JSON.stringify(tempOfficerUser));
-                
                 if (onLogin) onLogin(tempOfficerUser);
                 navigate('/dashboard'); 
                 return;
             }
 
-            // 2. CHECK "DATABASE" (localStorage) FOR OTHER REGISTERED USERS
             const allUsers = JSON.parse(localStorage.getItem('registeredUsers')) || [];
             const matchedUser = allUsers.find(
                 (u) => u.email.toLowerCase() === email.toLowerCase() && u.password === password
@@ -48,18 +46,16 @@ const Login = ({ onLogin }) => {
 
             if (matchedUser) {
                 if (matchedUser.role !== role) {
-                    alert(`Access Denied: Your account is registered as an ${matchedUser.role}.`);
+                    alert(`Access Denied: Registered as ${matchedUser.role}.`);
                     setIsLoading(false);
                     return;
                 }
-
                 localStorage.setItem('isAuthenticated', 'true');
                 localStorage.setItem('currentUser', JSON.stringify(matchedUser));
-
                 if (onLogin) onLogin(matchedUser);
                 navigate('/dashboard');
             } else {
-                alert("Invalid credentials. For first-time use, try: officer@test.com / pass123");
+                alert("Invalid credentials.");
                 setIsLoading(false);
             }
         }, 1000); 
@@ -80,7 +76,6 @@ const Login = ({ onLogin }) => {
 
                 <div className="form-container">
                     <form className="glass-card" onSubmit={handleSignIn}>
-
                         <div className="auth-input-group">
                             <Mail className="input-icon-left" size={18} />
                             <input
@@ -103,11 +98,7 @@ const Login = ({ onLogin }) => {
                                 required
                                 disabled={isLoading}
                             />
-                            <div
-                                className="eye-icon"
-                                onClick={() => setShowPassword(!showPassword)}
-                                style={{ cursor: 'pointer' }}
-                            >
+                            <div className="eye-icon" onClick={() => setShowPassword(!showPassword)}>
                                 {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                             </div>
                         </div>
@@ -137,13 +128,15 @@ const Login = ({ onLogin }) => {
                             Forgot Password?
                         </button>
 
-                        <button
-                            className={`submit-btn ${isLoading ? 'loading' : ''}`}
-                            type="submit"
-                            disabled={isLoading}
-                        >
-                            {isLoading ? "Verifying..." : "Sign In"}
-                        </button>
+                        <div id="login-action-area">
+                            <button
+                                id="login-submit-btn"
+                                type="submit"
+                                disabled={isLoading}
+                            >
+                                {isLoading ? "Verifying..." : "Sign In"}
+                            </button>
+                        </div>
                     </form>
                 </div>
             </div>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import '../styles/Schedule.css';
 import ActivityLog from './ActivityLog';
 import { 
@@ -16,8 +16,11 @@ import {
 import { toast, ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
+const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
 const Schedule = ({ hideHeader, onSuccess, triggerToast }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   
   // UI States
   const [showLog, setShowLog] = useState(false);
@@ -27,12 +30,7 @@ const Schedule = ({ hideHeader, onSuccess, triggerToast }) => {
   // Calendar & Time States
   const [currentTime, setCurrentTime] = useState(new Date());
   const [currentDate, setCurrentDate] = useState(new Date()); 
-  const [hearingPage, setHearingPage] = useState(0); 
-  const itemsPerPage = 2;
-  const [allHearings, setAllHearings] = useState([]);
   
-  const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-
   // Form States
   const [editingId, setEditingId] = useState(null);
   const [startTime, setStartTime] = useState("09:30");
@@ -54,11 +52,17 @@ const Schedule = ({ hideHeader, onSuccess, triggerToast }) => {
     return str.toLowerCase().split(' ').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
   };
 
+  const convertTo24Hour = (timeStr) => {
+    if (!timeStr) return "09:30";
+    const [time, modifier] = timeStr.split(' ');
+    let [hours, minutes] = time.split(':');
+    if (hours === '12') hours = '00';
+    if (modifier === 'PM') hours = parseInt(hours, 10) + 12;
+    return `${String(hours).padStart(2, '0')}:${minutes}`;
+  };
+
   useEffect(() => {
     const loadData = () => {
-      const savedHearings = JSON.parse(localStorage.getItem('hearings')) || [];
-      setAllHearings(savedHearings);
-
       const loggedInUser = JSON.parse(localStorage.getItem('currentUser'));
       if (loggedInUser) {
         const fullName = `${toTitleCase(loggedInUser.firstName || "")} ${loggedInUser.middleInitial ? loggedInUser.middleInitial.toUpperCase() + '.' : ""} ${toTitleCase(loggedInUser.lastName || "")}`.trim();
@@ -66,12 +70,34 @@ const Schedule = ({ hideHeader, onSuccess, triggerToast }) => {
       }
     };
     loadData();
-
     const interval = setInterval(() => setCurrentTime(new Date()), 30000);
     return () => clearInterval(interval);
   }, []);
 
-  // --- PARTY MODAL LOGIC ---
+  useEffect(() => {
+    if (location.state?.editId) {
+      const saved = JSON.parse(localStorage.getItem('hearings')) || [];
+      const record = saved.find(h => h.id === location.state.editId);
+      if (record) {
+        setEditingId(record.id);
+        setFormData({
+          purpose: record.title,
+          selectedMonth: record.monthName || months[new Date().getMonth()],
+          selectedDay: record.day,
+          officer: record.officer,
+          laborViolation: record.laborViolation || 'Select',
+          otherIssues: record.otherIssues || ''
+        });
+        setRequestingParties(record.requestingParty.split(', '));
+        setRespondingParties(record.respondingParty.split(', '));
+        if (record.time?.includes(' to ')) {
+          const [start, end] = record.time.split(' to ');
+          setStartTime(convertTo24Hour(start));
+          setEndTime(convertTo24Hour(end));
+        }
+      }
+    }
+  }, [location.state]);
 
   const handleAddParty = (type) => {
     if (type === 'req') setRequestingParties([...requestingParties, '']);
@@ -79,11 +105,8 @@ const Schedule = ({ hideHeader, onSuccess, triggerToast }) => {
   };
 
   const handleRemoveParty = (type, index) => {
-    if (type === 'req' && requestingParties.length > 1) {
-      setRequestingParties(requestingParties.filter((_, i) => i !== index));
-    } else if (type === 'res' && respondingParties.length > 1) {
-      setRespondingParties(respondingParties.filter((_, i) => i !== index));
-    }
+    if (type === 'req' && requestingParties.length > 1) setRequestingParties(requestingParties.filter((_, i) => i !== index));
+    else if (type === 'res' && respondingParties.length > 1) setRespondingParties(respondingParties.filter((_, i) => i !== index));
   };
 
   const handlePartyNameChange = (type, index, value) => {
@@ -95,34 +118,16 @@ const Schedule = ({ hideHeader, onSuccess, triggerToast }) => {
   const handleCloseIconClick = () => {
     const hasReq = requestingParties.some(n => n.trim() !== "");
     const hasRes = respondingParties.some(n => n.trim() !== "");
-
-    if (!hasReq && !hasRes) {
-      toast.error("Please add names to both Requesting and Responding parties.");
-    } else if (!hasReq) {
-      toast.error("Please add a name for the Requesting Party.");
-    } else if (!hasRes) {
-      toast.error("Please add a name for the Responding Party.");
-    } else {
-      setShowPartyModal(false);
-    }
+    if (!hasReq || !hasRes) toast.error("Please ensure all parties are named.");
+    else setShowPartyModal(false);
   };
 
   const handleModalSave = () => {
     const hasReq = requestingParties.some(n => n.trim() !== "");
     const hasRes = respondingParties.some(n => n.trim() !== "");
-
-    if (!hasReq || !hasRes) {
-      toast.warn("Parties cannot be empty. Please fill them in before saving.");
-      return;
-    }
+    if (!hasReq || !hasRes) { toast.warn("Parties cannot be empty."); return; }
     setShowPartyModal(false);
   };
-
-  const handleCancelRequest = () => {
-    setShowConfirmExit(true); // Switches view within the modal
-  };
-
-  // --- FORM SUBMISSION ---
 
   const formatTimeToAmPm = (timeStr) => {
     if (!timeStr) return "";
@@ -136,12 +141,10 @@ const Schedule = ({ hideHeader, onSuccess, triggerToast }) => {
   const handleSubmit = () => {
     const validReq = requestingParties.filter(n => n.trim() !== "");
     const validRes = respondingParties.filter(n => n.trim() !== "");
-
     if (!formData.purpose || validReq.length === 0 || validRes.length === 0) {
       toast.warn("Please complete the purpose and ensure all parties are named.");
       return;
     }
-
     const combinedTime = `${formatTimeToAmPm(startTime)} to ${formatTimeToAmPm(endTime)}`;
     const selectedDateObj = new Date(currentDate.getFullYear(), months.indexOf(formData.selectedMonth), parseInt(formData.selectedDay));
 
@@ -161,49 +164,24 @@ const Schedule = ({ hideHeader, onSuccess, triggerToast }) => {
       dow: selectedDateObj.toLocaleDateString('en-US', { weekday: 'long' })
     };
     
-    const updated = [...allHearings.filter(h => h.id !== editingId), hearingData];
+    const saved = JSON.parse(localStorage.getItem('hearings')) || [];
+    const updated = [...saved.filter(h => h.id !== editingId), hearingData];
     localStorage.setItem('hearings', JSON.stringify(updated));
     
     const msg = editingId ? "Schedule Updated!" : "Schedule Created!";
-    if (triggerToast) triggerToast("success", msg);
-    else toast.success(msg);
-    
+    if (triggerToast) triggerToast("success", msg); else toast.success(msg);
     if (onSuccess) onSuccess();
     else {
       setFormData(prev => ({ ...prev, purpose: '', laborViolation: 'Select', otherIssues: '' }));
-      setRequestingParties(['']); 
-      setRespondingParties(['']); 
-      setEditingId(null);
-      setAllHearings(updated);
+      setRequestingParties(['']); setRespondingParties(['']); setEditingId(null);
     }
   };
-
-  // --- CALENDAR LOGIC ---
 
   const month = currentDate.getMonth();
   const monthName = months[month];
   const year = currentDate.getFullYear();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const startingOffset = (new Date(year, month, 1).getDay() + 6) % 7;
-
-  const pendingHearingsForMonth = allHearings
-    .filter(h => {
-      const isSameMonth = h.date && h.date.toUpperCase().includes(monthName.substring(0, 3).toUpperCase());
-      if (!isSameMonth) return false;
-      try {
-        const endTimeStr = h.time.split(' to ')[1]; 
-        const [time, modifier] = endTimeStr.split(' ');
-        let [hours, minutes] = time.split(':');
-        if (modifier === 'PM' && hours !== '12') hours = parseInt(hours) + 12;
-        if (modifier === 'AM' && hours === '12') hours = '00';
-        const hearingEndDate = new Date(year, months.indexOf(h.monthName || formData.selectedMonth), parseInt(h.day), hours, minutes);
-        return hearingEndDate > currentTime; 
-      } catch (e) { return true; }
-    })
-    .sort((a, b) => parseInt(a.day) - parseInt(b.day));
-
-  const totalRecentPages = Math.ceil(pendingHearingsForMonth.length / itemsPerPage);
-  const currentRecentPageItems = pendingHearingsForMonth.slice(hearingPage * itemsPerPage, (hearingPage + 1) * itemsPerPage);
 
   if (showLog) return <ActivityLog onBack={() => setShowLog(false)} />;
 
@@ -225,13 +203,12 @@ const Schedule = ({ hideHeader, onSuccess, triggerToast }) => {
               <h3>{showConfirmExit ? "Confirm Exit" : "Manage Parties"}</h3>
               {!showConfirmExit && <FaTimes className="close-icon" onClick={handleCloseIconClick} />}
             </div>
-            
             <div className="modal-body">
               {showConfirmExit ? (
                 <div className="confirm-exit-view">
                   <FaExclamationTriangle className="warning-icon-large" />
                   <h3>Unsaved Changes</h3>
-                  <p>Are you sure you want to cancel? Any names you've entered will be lost.</p>
+                  <p>Are you sure you want to cancel? Any names entered will be lost.</p>
                   <div className="modal-footer-dual">
                     <button className="modal-save-btn-small" onClick={() => setShowConfirmExit(false)}>Go Back</button>
                     <button className="modal-cancel-btn" onClick={() => { setShowPartyModal(false); setShowConfirmExit(false); }}>Yes, Cancel</button>
@@ -244,29 +221,27 @@ const Schedule = ({ hideHeader, onSuccess, triggerToast }) => {
                     <div className="party-list-scroll-container">
                       {requestingParties.map((name, index) => (
                         <div key={index} className="party-input-row">
-                          <input type="text" placeholder="Insert name here" value={name} onChange={(e) => handlePartyNameChange('req', index, e.target.value)} />
+                          <input type="text" placeholder="Insert name" value={name} onChange={(e) => handlePartyNameChange('req', index, e.target.value)} />
                           <button className="party-delete-btn" onClick={() => handleRemoveParty('req', index)}><FaTrash /></button>
                         </div>
                       ))}
                     </div>
                     <button className="add-another-btn" onClick={() => handleAddParty('req')}><FaPlus /> Add Another</button>
                   </div>
-
                   <div className="party-section-box">
                     <h4 className="party-section-title">Responding Party</h4>
                     <div className="party-list-scroll-container">
                       {respondingParties.map((name, index) => (
                         <div key={index} className="party-input-row">
-                          <input type="text" placeholder="Insert name here" value={name} onChange={(e) => handlePartyNameChange('res', index, e.target.value)} />
+                          <input type="text" placeholder="Insert name" value={name} onChange={(e) => handlePartyNameChange('res', index, e.target.value)} />
                           <button className="party-delete-btn" onClick={() => handleRemoveParty('res', index)}><FaTrash /></button>
                         </div>
                       ))}
                     </div>
                     <button className="add-another-btn" onClick={() => handleAddParty('res')}><FaPlus /> Add Another</button>
                   </div>
-
                   <div className="modal-footer-dual">
-                    <button className="modal-cancel-btn" onClick={handleCancelRequest}>Cancel</button>
+                    <button className="modal-cancel-btn" onClick={() => setShowConfirmExit(true)}>Cancel</button>
                     <button className="modal-save-btn-small" onClick={handleModalSave}>Save</button>
                   </div>
                 </>
@@ -324,21 +299,11 @@ const Schedule = ({ hideHeader, onSuccess, triggerToast }) => {
               <label>Labor Violation / Claims:</label>
               <select className="sched-input" value={formData.laborViolation} onChange={(e) => setFormData({...formData, laborViolation: e.target.value})}>
                 <option value="Select">Select</option>
-                <option>Minimum Wage</option>
-                <option>COLA</option>
-                <option>Night Shift Differential</option>
-                <option>Overtime Pay</option>
-                <option>Holiday Pay</option>
-                <option>13th Month Pay</option>
-                <option>Service Charge</option>
-                <option>Premium Pay for Rest Day</option>
-                <option>Premium Pay for Special Day</option>
-                <option>Service Incentive Leave</option>
-                <option>Maternity Leave</option>
-                <option>Paternity Leave</option>
-                <option>Parental Leave for Solo Parent</option>
-                <option>Leave for Victims of VAWC</option>
-                <option>Special Leave for Women</option>
+                <option>Minimum Wage</option><option>COLA</option><option>Night Shift Differential</option>
+                <option>Overtime Pay</option><option>Holiday Pay</option><option>13th Month Pay</option>
+                <option>Service Charge</option><option>Premium Pay for Rest Day</option><option>Premium Pay for Special Day</option>
+                <option>Service Incentive Leave</option><option>Maternity Leave</option><option>Paternity Leave</option>
+                <option>Parental Leave for Solo Parent</option><option>Leave for Victims of VAWC</option><option>Special Leave for Women</option>
               </select>
             </div>
             <div className="input-group">
@@ -368,45 +333,8 @@ const Schedule = ({ hideHeader, onSuccess, triggerToast }) => {
             {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(d => <div key={d} className="dow-label">{d}</div>)}
             {Array.from({ length: startingOffset }).map((_, i) => <div key={i}></div>)}
             {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(day => (
-                <div key={day} className={`day-num ${currentTime.getDate() === day && currentTime.getMonth() === month && currentTime.getFullYear() === year ? 'today-highlight' : ''}`}>{day}</div>
+                <div key={day} className={`day-num ${currentTime.getDate() === day && currentTime.getMonth() === month ? 'today-highlight' : ''}`}>{day}</div>
             ))}
-          </div>
-
-          <div className="recent-section">
-            <h4 className="section-title small">Recent Hearings</h4>
-            <div className="recent-hearings-list">
-              {currentRecentPageItems.length > 0 ? currentRecentPageItems.map((h) => (
-                <div key={h.id} className="recent-hearing-card-new">
-                  <div className="rh-date-col">
-                    <span className="rh-day-name">{h.dow?.substring(0, 3)}</span>
-                    <span className="rh-day-number">{h.day}</span>
-                  </div>
-                  <div className="rh-content-col">
-                    <div className="rh-main-info"><h4>{h.title}</h4><p>{h.time}</p></div>
-                    <button className="rh-view-btn" onClick={() => {
-                        setEditingId(h.id);
-                        setFormData({
-                            purpose: h.title,
-                            selectedMonth: h.monthName || h.date.split(' ')[0],
-                            selectedDay: h.day,
-                            officer: h.officer,
-                            laborViolation: h.laborViolation || 'Select',
-                            otherIssues: h.otherIssues || ''
-                        });
-                        setRequestingParties(h.requestingParty.split(', '));
-                        setRespondingParties(h.respondingParty.split(', '));
-                    }}>View</button>
-                  </div>
-                </div>
-              )) : <p className="no-hearings">No upcoming hearings for this month.</p>}
-            </div>
-            {totalRecentPages > 1 && (
-              <div className="pagination-dots">
-                {Array.from({ length: totalRecentPages }).map((_, i) => (
-                  <span key={i} className={`dot-item ${hearingPage === i ? 'active' : ''}`} onClick={() => setHearingPage(i)} />
-                ))}
-              </div>
-            )}
           </div>
         </div>
       </div>

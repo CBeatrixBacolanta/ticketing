@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom"; // IMPORT NAVIGATE
+import { useNavigate } from "react-router-dom"; 
+import { FaEye, FaEyeSlash, FaArrowLeft } from "react-icons/fa"; // Added Icons
 import "../styles/Settings.css";
 
-// Added onLogout to the destructured props
-const Settings = ({ user, onSave, onLogout }) => {
-  const navigate = useNavigate(); // INITIALIZE NAVIGATE
+const Settings = ({ user, onSave, onLogout, onDeleteAccount }) => {
+  const navigate = useNavigate();
   const [notifications, setNotifications] = useState(true);
   const [password, setPassword] = useState("password123");
+  const [showPassword, setShowPassword] = useState(false); // Toggle state
 
   const [toast, setToast] = useState({ show: false, message: "", type: "" });
 
@@ -24,22 +25,26 @@ const Settings = ({ user, onSave, onLogout }) => {
   };
 
   const handleSave = () => {
-    onSave(user);
+    onSave({ ...user, password }); // Save the new password
     triggerToast("Settings saved successfully!", "success");
+    // Navigate to dashboard after a short delay to show the toast
+    setTimeout(() => navigate("/dashboard"), 1000);
   };
 
   const handleDiscard = () => {
-    triggerToast("Changes discarded!", "error");
+    navigate("/dashboard");
   };
 
   const handleDelete = () => {
-    triggerToast("Account deletion is disabled in demo mode.", "error");
+    if (window.confirm("Are you sure you want to delete your account? This action is permanent.")) {
+      onDeleteAccount(); // Assuming this prop exists in App.js to clear data
+      navigate("/login");
+    }
   };
 
-  // NEW LOGOUT HANDLER
   const handleLogoutClick = () => {
-    onLogout(); // This triggers the cleanup in App.js
-    navigate("/login"); // This moves the user to the login screen
+    onLogout(); 
+    navigate("/login"); 
   };
 
   return (
@@ -54,12 +59,14 @@ const Settings = ({ user, onSave, onLogout }) => {
       <div className="settings-bg-split"></div>
       
       <div className="settings-content-wrapper">
-        <div className="settings-header">
+        <div className="settings-header" onClick={() => navigate("/dashboard")} style={{cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '10px'}}>
+          <FaArrowLeft style={{color: 'white'}}/>
           <h1 className="settings-title"> Settings</h1>
         </div>
 
         <div className="settings-main-layout">
           <div className="settings-column">
+            {/* Notifications Card */}
             <div className="settings-card shadow-glow">
               <h3>Notifications</h3>
               <p className="sub-text">Enable all notifications</p>
@@ -75,26 +82,35 @@ const Settings = ({ user, onSave, onLogout }) => {
               </div>
             </div>
 
+            {/* Account Management Card */}
             <div className="settings-card shadow-glow">
               <h3>Account Management</h3>
-              <div className="settings-input-container">
+              <div className="settings-input-container password-wrapper">
                 <input 
-                  type="password" 
+                  type={showPassword ? "text" : "password"} 
                   className="settings-input"
                   value={password} 
                   onChange={(e) => setPassword(e.target.value)} 
                 />
+                <button 
+                  type="button" 
+                  className="password-toggle-btn"
+                  onClick={() => setShowPassword(!showPassword)}
+                >
+                  {showPassword ? <FaEyeSlash /> : <FaEye />}
+                </button>
               </div>
               <button className="btn-delete-account" onClick={handleDelete}>Delete Account</button>
             </div>
           </div>
 
+          {/* Profile Card */}
           <div className="settings-column">
             <div className="settings-card profile-card-center shadow-glow">
               <h3>Profile Picture</h3>
               <div className="profile-avatar-border">
                 {user?.profilePic ? (
-                  <img src={user.profilePic} alt="User Profile" className="profile-avatar-img" />
+                  <img src={user.profilePic} alt="User" className="profile-avatar-img" />
                 ) : (
                   <div className="profile-placeholder">User Profile</div>
                 )}
@@ -102,7 +118,6 @@ const Settings = ({ user, onSave, onLogout }) => {
               <h2 className="profile-display-name">
                 {user?.firstName} {user?.middleInitial ? `${user.middleInitial}. ` : ""}{user?.lastName}
               </h2>
-              {/* UPDATED LOGOUT BUTTON */}
               <button className="btn-logout-settings" onClick={handleLogoutClick}>Logout</button>
             </div>
           </div>

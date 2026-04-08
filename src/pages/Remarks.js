@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom'; // Added useParams
+import { useNavigate, useParams } from 'react-router-dom';
 import {
     Editor,
     EditorProvider,
@@ -16,17 +16,31 @@ import {
 import '../styles/Remarks.css';
 
 const Remarks = () => {
-    const { id } = useParams(); // Get hearing ID from URL
+    const { id } = useParams(); 
     const navigate = useNavigate();
+
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
-
     const [notification, setNotification] = useState({
         show: false,
         message: '',
         type: ''
     });
 
+    // 1. LOAD DATA: This runs as soon as the page opens
+    useEffect(() => {
+        const savedHearings = JSON.parse(localStorage.getItem('hearings')) || [];
+        // Find the specific hearing by ID
+        const currentHearing = savedHearings.find(h => h.id.toString() === id.toString());
+        
+        if (currentHearing) {
+            // If the hearing already has a saved title or content, put it in the editor
+            if (currentHearing.remarkTitle) setTitle(currentHearing.remarkTitle);
+            if (currentHearing.remarkContent) setContent(currentHearing.remarkContent);
+        }
+    }, [id]);
+
+    // 2. SAVE DATA: Updates the record in localStorage
     const handleSave = () => {
         if (!title.trim()) {
             setNotification({
@@ -37,33 +51,41 @@ const Remarks = () => {
             return;
         }
 
-        // --- UPDATE LOGIC FOR REPORTS ---
         const savedHearings = JSON.parse(localStorage.getItem('hearings')) || [];
+        
+        // Map through the hearings and update only the one matching the current ID
         const updatedHearings = savedHearings.map(h => {
-            // Find the hearing by ID and mark it as 'Done'
             if (h.id.toString() === id.toString()) {
-                return { ...h, status: 'Done', remarkTitle: title, remarkContent: content };
+                return { 
+                    ...h, 
+                    status: 'Done', // Automatically mark as Done upon saving remarks
+                    remarkTitle: title, 
+                    remarkContent: content 
+                };
             }
             return h;
         });
         
+        // Save the whole updated array back to localStorage
         localStorage.setItem('hearings', JSON.stringify(updatedHearings));
-        // --------------------------------
 
         setNotification({
             show: true,
-            message: "Remark saved successfully! Hearing marked as Done.",
+            message: "Remark saved successfully! Data is now persistent.",
             type: "success"
         });
 
-        // Redirect back to schedule after success
-        setTimeout(() => navigate('/schedule'), 2000);
+        // Redirect back to main schedule after a short delay
+        setTimeout(() => {
+            navigate('/schedule');
+        }, 2000);
     };
 
     const handleCancel = () => {
         navigate('/schedule');
     };
 
+    // Auto-hide notification
     useEffect(() => {
         if (notification.show) {
             const timer = setTimeout(() => {
@@ -109,7 +131,8 @@ const Remarks = () => {
                             style: {
                                 height: '700px',
                                 border: 'none',
-                                fontFamily: '"Times New Roman", Times, serif'
+                                fontFamily: '"Times New Roman", Times, serif',
+                                fontSize: '14pt'
                             }
                         }}
                     >

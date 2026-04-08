@@ -2,17 +2,27 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../styles/Dashboard.css';
 import { FaTimes } from 'react-icons/fa';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList } from 'recharts';
 
 const Dashboard = ({ user, notifications, onMarkAsRead, onClearAll }) => {
   const navigate = useNavigate();
   const [showPanel, setShowPanel] = useState(false);
   const [hearings, setHearings] = useState([]);
   
-  // 1. IMPROVED NAME LOGIC: Check props, then the 'user' object in storage
+  // Real-time Date Logic for initialization
+  const now = new Date();
+  const monthNames = [
+    "January", "February", "March", "April", "May", "June",
+    "July", "August", "September", "October", "November", "December"
+  ];
+
+  const [selectedMonth, setSelectedMonth] = useState(monthNames[now.getMonth()]);
+  const [selectedYear, setSelectedYear] = useState(now.getFullYear());
+  const [reportData, setReportData] = useState([]);
+  
+  // Name Logic
   const [currentName, setCurrentName] = useState(() => {
     if (user?.firstName) return user.firstName;
-    
-    // Attempt to pull from the saved user object in localStorage
     try {
       const savedUser = JSON.parse(localStorage.getItem('user'));
       return savedUser?.firstName || "User";
@@ -30,7 +40,7 @@ const Dashboard = ({ user, notifications, onMarkAsRead, onClearAll }) => {
     { name: 'November', key: 'NOV' }, { name: 'December', key: 'DEC' }
   ];
 
-  // 2. Sync name when the 'user' prop changes (from EditProfile save)
+  // Sync name if user prop changes
   useEffect(() => {
     if (user?.firstName) {
       setCurrentName(user.firstName);
@@ -42,22 +52,71 @@ const Dashboard = ({ user, notifications, onMarkAsRead, onClearAll }) => {
     }
   }, [user]);
 
-  // 3. Sync Report Summary with Daily Records and handle storage events
+  // Load initial hearings data
   useEffect(() => {
     const loadData = () => {
-      // Load Hearings
       const savedData = JSON.parse(localStorage.getItem('hearings')) || [];
       setHearings(savedData);
-      
-      // Secondary check for name sync across tabs
-      const savedUser = JSON.parse(localStorage.getItem('user'));
-      if (savedUser?.firstName) setCurrentName(savedUser.firstName);
     };
 
     loadData();
     window.addEventListener('storage', loadData);
     return () => window.removeEventListener('storage', loadData);
   }, []);
+
+  // Process data for the BarChart based on real-time filters
+  useEffect(() => {
+    const fetchAndProcessData = () => {
+      const savedHearings = JSON.parse(localStorage.getItem('hearings')) || [];
+      
+      // Initialize 31 days
+      const dailyCounts = Array.from({ length: 31 }, (_, i) => ({
+        day: i + 1,
+        clients: 0 
+      }));
+
+      const monthMap = {
+        'JAN': 'January', 'FEB': 'February', 'MAR': 'March', 'APR': 'April',
+        'MAY': 'May', 'JUN': 'June', 'JUL': 'July', 'AUG': 'August',
+        'SEP': 'September', 'OCT': 'October', 'NOV': 'November', 'DEC': 'December'
+      };
+
+      savedHearings.forEach(hearing => {
+        const dateParts = hearing.date?.split(' ');
+        if (!dateParts || dateParts.length < 2) return;
+
+        const shortMonth = dateParts[0].toUpperCase();
+        const fullMonthName = monthMap[shortMonth];
+        const day = parseInt(hearing.day || dateParts[1]);
+        const isDone = hearing.status?.toLowerCase() === 'done' || hearing.status?.toLowerCase() === 'completed';
+        
+        // Dynamic Filter Check: Status must be done + match selected month + match selected year
+        // We use || 2026 as a fallback if the year isn't stored in the object
+        const hearingYear = parseInt(hearing.year || 2026);
+
+        if (isDone && fullMonthName === selectedMonth && hearingYear === parseInt(selectedYear)) {
+          if (dailyCounts[day - 1]) {
+            dailyCounts[day - 1].clients += 1;
+          }
+        }
+      });
+      setReportData(dailyCounts);
+    };
+
+    fetchAndProcessData();
+    window.addEventListener('storage', fetchAndProcessData);
+    return () => window.removeEventListener('storage', fetchAndProcessData);
+  }, [selectedMonth, selectedYear]);
+
+  const renderCustomizedLabel = (props) => {
+    const { x, y, width, value } = props;
+    if (value === 0) return null; 
+    return (
+      <text x={x + width / 2} y={y - 10} fill="#718096" textAnchor="middle" style={{ fontSize: '12px', fontWeight: '600' }}>
+        {value}
+      </text>
+    );
+  };
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
@@ -72,15 +131,10 @@ const Dashboard = ({ user, notifications, onMarkAsRead, onClearAll }) => {
             <FaTimes />
           </button>
         </div>
-
         <div className="side-panel-content">
           {notifications.length > 0 ? (
             notifications.map((n) => (
-              <div 
-                key={n.id} 
-                className={`side-notif-item ${n.isRead ? 'read' : 'unread'}`}
-                onClick={() => !n.isRead && onMarkAsRead(n.id)}
-              >
+              <div key={n.id} className={`side-notif-item ${n.isRead ? 'read' : 'unread'}`} onClick={() => !n.isRead && onMarkAsRead(n.id)}>
                 <p><strong>{n.title}</strong></p>
                 <small>{n.date}</small>
               </div>
@@ -89,27 +143,18 @@ const Dashboard = ({ user, notifications, onMarkAsRead, onClearAll }) => {
             <div className="empty-notifs">No new notifications</div>
           )}
         </div>
-
         <div className="side-panel-footer">
-          <button 
-            className="footer-action-btn" 
-            onClick={() => navigate('/notifications')}
-          >
-            See All
-          </button>
-          <button 
-            className="footer-action-btn clear-btn" 
-            onClick={onClearAll}
-          >
-            Clear All
-          </button>
+          <button className="footer-action-btn" onClick={() => navigate('/notifications')}>See All</button>
+          <button className="footer-action-btn clear-btn" onClick={onClearAll}>Clear All</button>
         </div>
       </div>
 
       <main className="dashboard-content">
-        <header className="welcome-section">
-          <h1>Hello {currentName},</h1>
-          <p>What's on the agenda for today?</p>
+        <header className="dashboard-header-main">
+          <div className="welcome-section">
+            <h1>Hello {currentName},</h1>
+            <p>What's on the agenda for today?</p>
+          </div>
         </header>
 
         <div className="quick-actions">
@@ -138,6 +183,55 @@ const Dashboard = ({ user, notifications, onMarkAsRead, onClearAll }) => {
                 <div className="month-label">{m.name}</div>
               </div>
             ))}
+          </div>
+        </section>
+
+        <section className="daily-report-section">
+          <div className="reports-header-container">
+            <h2 className="reports-title">Daily Report</h2>
+            <div className="reports-filters">
+              <div className="reports-select-group">
+                <span>Select Month:</span>
+                <select className="month-dropdown" value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)}>
+                  {monthNames.map(m => (
+                    <option key={m} value={m}>{m}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="reports-select-group">
+                <span>Select Year:</span>
+                <select className="month-dropdown" value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)}>
+                  {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div className="reports-main-card shadow-glow">
+            <div className="reports-grid-layout">
+              <div className="officer-summary">
+                <div className="officer-avatar-wrapper">
+                  {user?.profilePic ? <img src={user.profilePic} alt="Officer" /> : <div className="avatar-placeholder">?</div>}
+                </div>
+                <h3 className="officer-name">{user?.lastName || "Officer"}, {user?.firstName || "User"}</h3>
+                <p className="officer-role">SR. LEO</p>
+                <p className="officer-email-text">{user?.email}</p>
+              </div>
+
+              <div className="graph-section-wrapper">
+                <ResponsiveContainer width="100%" height={400}>
+                  <BarChart data={reportData} margin={{ top: 30, right: 10, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#d1d5db" />
+                    <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: '#333', fontSize: 10 }} />
+                    <YAxis domain={[0, 20]} tickCount={11} axisLine={false} tickLine={false} width={40} style={{ fontSize: '11px', fill: '#666' }} />
+                    <Tooltip cursor={{ fill: 'rgba(0,0,0,0.05)' }} />
+                    <Bar dataKey="clients" fill="#030a49" radius={[15, 15, 0, 0]} barSize={14}>
+                      <LabelList dataKey="clients" content={renderCustomizedLabel} />
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
           </div>
         </section>
       </main>
