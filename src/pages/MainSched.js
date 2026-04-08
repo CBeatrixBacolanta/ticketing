@@ -11,7 +11,7 @@ import {
   FaChevronRight
 } from 'react-icons/fa';
 
-const MainSched = ({ triggerToast }) => {
+const MainSched = ({ triggerToast, sidebarOpen = true }) => {
   const [showLog, setShowLog] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   
@@ -98,7 +98,7 @@ const MainSched = ({ triggerToast }) => {
   }} />;
 
   return (
-    <div className="schedule-outer-container">
+    <div className={`schedule-outer-container ${!sidebarOpen ? 'sidebar-closed' : ''}`}>
       <div className="schedule-header">
         <div className="header-left">
           {isCreating && (
