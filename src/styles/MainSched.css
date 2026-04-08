@@ -1,15 +1,12 @@
 /* --- LAYOUT & BASE --- */
 .schedule-outer-container {
     padding: 30px;
-    /* Added padding-left to prevent overlap with the fixed sidebar */
-    padding-left: 290px; 
     background-color: #f3f4f6;
     min-height: 100vh;
     font-family: 'Poppins', sans-serif;
     transition: padding-left 0.3s ease-in-out;
 }
 
-/* Added helper class for when sidebar is hidden/closed */
 .schedule-outer-container.sidebar-closed {
     padding-left: 30px;
 }
