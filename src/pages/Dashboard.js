@@ -9,7 +9,6 @@ const Dashboard = ({ user, notifications, onMarkAsRead, onClearAll }) => {
   const [showPanel, setShowPanel] = useState(false);
   const [hearings, setHearings] = useState([]);
   
-  // Real-time Date Logic for initialization
   const now = new Date();
   const monthNames = [
     "January", "February", "March", "April", "May", "June",
@@ -20,16 +19,8 @@ const Dashboard = ({ user, notifications, onMarkAsRead, onClearAll }) => {
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
   const [reportData, setReportData] = useState([]);
   
-  // Name Logic
-  const [currentName, setCurrentName] = useState(() => {
-    if (user?.firstName) return user.firstName;
-    try {
-      const savedUser = JSON.parse(localStorage.getItem('user'));
-      return savedUser?.firstName || "User";
-    } catch (e) {
-      return "User";
-    }
-  });
+  // Cleaned up: Removed setCurrentName as it was causing the warning
+  const currentName = user?.firstName || "User";
 
   const reportMonths = [
     { name: 'January', key: 'JAN' }, { name: 'February', key: 'FEB' },
@@ -40,79 +31,62 @@ const Dashboard = ({ user, notifications, onMarkAsRead, onClearAll }) => {
     { name: 'November', key: 'NOV' }, { name: 'December', key: 'DEC' }
   ];
 
-  // Sync name if user prop changes
-  useEffect(() => {
-    if (user?.firstName) {
-      setCurrentName(user.firstName);
-    } else {
-      const savedUser = JSON.parse(localStorage.getItem('user'));
-      if (savedUser?.firstName) {
-        setCurrentName(savedUser.firstName);
-      }
-    }
-  }, [user]);
-
-  // Load initial hearings data
   useEffect(() => {
     const loadData = () => {
       const savedData = JSON.parse(localStorage.getItem('hearings')) || [];
       setHearings(savedData);
     };
-
     loadData();
     window.addEventListener('storage', loadData);
     return () => window.removeEventListener('storage', loadData);
   }, []);
 
-  // Process data for the BarChart based on real-time filters
   useEffect(() => {
-    const fetchAndProcessData = () => {
+    const processGraphData = () => {
       const savedHearings = JSON.parse(localStorage.getItem('hearings')) || [];
-      
-      // Initialize 31 days
       const dailyCounts = Array.from({ length: 31 }, (_, i) => ({
         day: i + 1,
         clients: 0 
       }));
 
-      const monthMap = {
-        'JAN': 'January', 'FEB': 'February', 'MAR': 'March', 'APR': 'April',
-        'MAY': 'May', 'JUN': 'June', 'JUL': 'July', 'AUG': 'August',
-        'SEP': 'September', 'OCT': 'October', 'NOV': 'November', 'DEC': 'December'
-      };
+      savedHearings.forEach(h => {
+        if (h.status?.toLowerCase() === 'done') {
+          let hMonth = "";
+          let hDay = 0;
+          let hYear = parseInt(h.year || 2026);
 
-      savedHearings.forEach(hearing => {
-        const dateParts = hearing.date?.split(' ');
-        if (!dateParts || dateParts.length < 2) return;
+          if (h.date && h.date.includes(' ')) {
+            const parts = h.date.split(' ');
+            const monthMap = { 
+              'JAN':'January','FEB':'February','MAR':'March','APR':'April','MAY':'May','JUN':'June',
+              'JUL':'July','AUG':'August','SEP':'September','OCT':'October','NOV':'November','DEC':'December' 
+            };
+            hMonth = monthMap[parts[0].toUpperCase()];
+            hDay = parseInt(parts[1]);
+          } else {
+            hMonth = h.monthName;
+            hDay = parseInt(h.day);
+          }
 
-        const shortMonth = dateParts[0].toUpperCase();
-        const fullMonthName = monthMap[shortMonth];
-        const day = parseInt(hearing.day || dateParts[1]);
-        const isDone = hearing.status?.toLowerCase() === 'done' || hearing.status?.toLowerCase() === 'completed';
-        
-        // Dynamic Filter Check: Status must be done + match selected month + match selected year
-        // We use || 2026 as a fallback if the year isn't stored in the object
-        const hearingYear = parseInt(hearing.year || 2026);
-
-        if (isDone && fullMonthName === selectedMonth && hearingYear === parseInt(selectedYear)) {
-          if (dailyCounts[day - 1]) {
-            dailyCounts[day - 1].clients += 1;
+          if (hMonth === selectedMonth && hYear === selectedYear) {
+            if (dailyCounts[hDay - 1]) {
+              dailyCounts[hDay - 1].clients += 1;
+            }
           }
         }
       });
       setReportData(dailyCounts);
     };
 
-    fetchAndProcessData();
-    window.addEventListener('storage', fetchAndProcessData);
-    return () => window.removeEventListener('storage', fetchAndProcessData);
+    processGraphData();
+    window.addEventListener('storage', processGraphData);
+    return () => window.removeEventListener('storage', processGraphData);
   }, [selectedMonth, selectedYear]);
 
-  const renderCustomizedLabel = (props) => {
-    const { x, y, width, value } = props;
-    if (value === 0) return null; 
+  const renderCustomLabel = ({ x, y, width, value }) => {
+    if (value === 0) return null;
     return (
-      <text x={x + width / 2} y={y - 10} fill="#718096" textAnchor="middle" style={{ fontSize: '12px', fontWeight: '600' }}>
+      <text x={x + width / 2} y={y - 10} fill="#666" textAnchor="middle" fontSize="12" fontWeight="bold">
         {value}
       </text>
     );
@@ -123,13 +97,10 @@ const Dashboard = ({ user, notifications, onMarkAsRead, onClearAll }) => {
   return (
     <div className="dashboard-container">
       {showPanel && <div className="overlay" onClick={() => setShowPanel(false)} />}
-
       <div className={`side-notif-panel ${showPanel ? 'open' : ''}`}>
         <div className="side-panel-header">
           <h3>Notifications ({unreadCount})</h3>
-          <button className="close-panel-btn" onClick={() => setShowPanel(false)}>
-            <FaTimes />
-          </button>
+          <button className="close-panel-btn" onClick={() => setShowPanel(false)}><FaTimes /></button>
         </div>
         <div className="side-panel-content">
           {notifications.length > 0 ? (
@@ -139,13 +110,7 @@ const Dashboard = ({ user, notifications, onMarkAsRead, onClearAll }) => {
                 <small>{n.date}</small>
               </div>
             ))
-          ) : (
-            <div className="empty-notifs">No new notifications</div>
-          )}
-        </div>
-        <div className="side-panel-footer">
-          <button className="footer-action-btn" onClick={() => navigate('/notifications')}>See All</button>
-          <button className="footer-action-btn clear-btn" onClick={onClearAll}>Clear All</button>
+          ) : <div className="empty-notifs">No new notifications</div>}
         </div>
       </div>
 
@@ -153,7 +118,7 @@ const Dashboard = ({ user, notifications, onMarkAsRead, onClearAll }) => {
         <header className="dashboard-header-main">
           <div className="welcome-section">
             <h1>Hello {currentName},</h1>
-            <p>What's on the agenda for today?</p>
+            <p>Your successful sessions report.</p>
           </div>
         </header>
 
@@ -162,12 +127,8 @@ const Dashboard = ({ user, notifications, onMarkAsRead, onClearAll }) => {
             <div className="action-icon">📅</div>
             <span>Schedule</span>
           </div>
-
           <div className="action-card navy" onClick={() => setShowPanel(true)}>
-            <div className="action-icon">
-              🔔
-              {unreadCount > 0 && <span className="notif-badge">{unreadCount}</span>}
-            </div>
+            <div className="action-icon">🔔 {unreadCount > 0 && <span className="notif-badge">{unreadCount}</span>}</div>
             <span>Notifications</span>
           </div>
         </div>
@@ -178,7 +139,7 @@ const Dashboard = ({ user, notifications, onMarkAsRead, onClearAll }) => {
             {reportMonths.map((m) => (
               <div key={m.name} className="month-card">
                 <div className="month-count">
-                  {hearings.filter(h => h.date?.toUpperCase().includes(m.key)).length}
+                  {hearings.filter(h => (h.date?.toUpperCase().includes(m.key) || h.monthName === m.name) && h.status?.toLowerCase() === 'done').length}
                 </div>
                 <div className="month-label">{m.name}</div>
               </div>
@@ -188,22 +149,14 @@ const Dashboard = ({ user, notifications, onMarkAsRead, onClearAll }) => {
 
         <section className="daily-report-section">
           <div className="reports-header-container">
-            <h2 className="reports-title">Daily Report</h2>
+            <h2 className="reports-title">Daily Report Graph</h2>
             <div className="reports-filters">
-              <div className="reports-select-group">
-                <span>Select Month:</span>
-                <select className="month-dropdown" value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)}>
-                  {monthNames.map(m => (
-                    <option key={m} value={m}>{m}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="reports-select-group">
-                <span>Select Year:</span>
-                <select className="month-dropdown" value={selectedYear} onChange={(e) => setSelectedYear(e.target.value)}>
-                  {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
-                </select>
-              </div>
+              <select className="month-dropdown" value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)}>
+                {monthNames.map(m => <option key={m} value={m}>{m}</option>)}
+              </select>
+              <select className="month-dropdown" value={selectedYear} onChange={(e) => setSelectedYear(parseInt(e.target.value))}>
+                {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
+              </select>
             </div>
           </div>
 
@@ -211,22 +164,21 @@ const Dashboard = ({ user, notifications, onMarkAsRead, onClearAll }) => {
             <div className="reports-grid-layout">
               <div className="officer-summary">
                 <div className="officer-avatar-wrapper">
-                  {user?.profilePic ? <img src={user.profilePic} alt="Officer" /> : <div className="avatar-placeholder">?</div>}
+                  {user?.profilePic ? <img src={user.profilePic} alt="PFP" /> : <div className="avatar-placeholder">?</div>}
                 </div>
-                <h3 className="officer-name">{user?.lastName || "Officer"}, {user?.firstName || "User"}</h3>
+                <h3 className="officer-name">{user?.lastName}, {user?.firstName}</h3>
                 <p className="officer-role">SR. LEO</p>
-                <p className="officer-email-text">{user?.email}</p>
               </div>
 
               <div className="graph-section-wrapper">
-                <ResponsiveContainer width="100%" height={400}>
-                  <BarChart data={reportData} margin={{ top: 30, right: 10, left: 0, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#d1d5db" />
-                    <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fill: '#333', fontSize: 10 }} />
-                    <YAxis domain={[0, 20]} tickCount={11} axisLine={false} tickLine={false} width={40} style={{ fontSize: '11px', fill: '#666' }} />
-                    <Tooltip cursor={{ fill: 'rgba(0,0,0,0.05)' }} />
-                    <Bar dataKey="clients" fill="#030a49" radius={[15, 15, 0, 0]} barSize={14}>
-                      <LabelList dataKey="clients" content={renderCustomizedLabel} />
+                <ResponsiveContainer width="100%" height={350}>
+                  <BarChart data={reportData} margin={{ top: 20, right: 10, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="day" tick={{ fontSize: 10 }} />
+                    <YAxis allowDecimals={false} width={30} />
+                    <Tooltip />
+                    <Bar dataKey="clients" fill="#030a49" radius={[10, 10, 0, 0]} barSize={15}>
+                      <LabelList dataKey="clients" content={renderCustomLabel} />
                     </Bar>
                   </BarChart>
                 </ResponsiveContainer>

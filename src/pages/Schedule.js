@@ -1,16 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import '../styles/Schedule.css';
-import ActivityLog from './ActivityLog';
-import { 
-  FaChevronLeft, 
-  FaChevronRight, 
-  FaHistory, 
-  FaArrowLeft, 
-  FaTrash, 
-  FaPlus, 
-  FaTimes, 
-  FaExclamationTriangle 
+import {
+  FaChevronLeft,
+  FaChevronRight,
+  FaHistory,
+  FaArrowLeft,
+  FaTrash,
+  FaPlus,
+  FaTimes,
+  FaExclamationTriangle
 } from 'react-icons/fa';
 
 import { toast, ToastContainer } from 'react-toastify';
@@ -18,21 +17,17 @@ import 'react-toastify/dist/ReactToastify.css';
 
 const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
-const Schedule = ({ hideHeader, onSuccess, triggerToast }) => {
+const Schedule = ({ user, hideHeader, onSuccess, triggerToast, onShowLog }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  
-  // UI States
-  const [showLog, setShowLog] = useState(false);
+
   const [showPartyModal, setShowPartyModal] = useState(false);
   const [showConfirmExit, setShowConfirmExit] = useState(false);
-  const [activePartyType, setActivePartyType] = useState(null); // 'req' or 'res'
-  
-  // Calendar & Time States
+  const [activePartyType, setActivePartyType] = useState(null);
+
   const [currentTime, setCurrentTime] = useState(new Date());
-  const [currentDate, setCurrentDate] = useState(new Date()); 
-  
-  // Form States
+  const [currentDate, setCurrentDate] = useState(new Date());
+
   const [editingId, setEditingId] = useState(null);
   const [startTime, setStartTime] = useState("09:30");
   const [endTime, setEndTime] = useState("10:00");
@@ -40,12 +35,12 @@ const Schedule = ({ hideHeader, onSuccess, triggerToast }) => {
   const [respondingParties, setRespondingParties] = useState(['']);
 
   const [formData, setFormData] = useState({
-    purpose: '', 
-    selectedMonth: months[new Date().getMonth()], 
+    purpose: '',
+    selectedMonth: months[new Date().getMonth()],
     selectedDay: String(new Date().getDate()),
     laborViolation: 'Select',
-    otherIssues: '', 
-    officer: '' 
+    otherIssues: '',
+    officer: ''
   });
 
   const toTitleCase = (str) => {
@@ -62,15 +57,28 @@ const Schedule = ({ hideHeader, onSuccess, triggerToast }) => {
     return `${String(hours).padStart(2, '0')}:${minutes}`;
   };
 
+  // SYNC OFFICER NAME: Checks prop first, then 'currentUser' in localStorage
   useEffect(() => {
-    const loadData = () => {
-      const savedUser = JSON.parse(localStorage.getItem('user'));
-      if (savedUser) {
-        const fullName = `${toTitleCase(savedUser.firstName || "")} ${savedUser.middleInitial ? savedUser.middleInitial.toUpperCase() + '.' : ""} ${toTitleCase(savedUser.lastName || "")}`.trim();
+    const fetchOfficer = () => {
+      const source = user || JSON.parse(localStorage.getItem('currentUser'));
+      
+      if (source) {
+        console.log("Officer data found:", source);
+        const first = toTitleCase(source.firstName || "");
+        const mi = source.middleInitial ? `${source.middleInitial.toUpperCase().replace('.', '')}. ` : "";
+        const last = toTitleCase(source.lastName || "");
+        const fullName = `${first} ${mi}${last}`.trim();
+        
         setFormData(prev => ({ ...prev, officer: fullName }));
+      } else {
+        console.warn("No user data found in props or localStorage under 'currentUser'");
       }
     };
-    loadData();
+
+    fetchOfficer();
+  }, [user]);
+
+  useEffect(() => {
     const interval = setInterval(() => setCurrentTime(new Date()), 30000);
     return () => clearInterval(interval);
   }, []);
@@ -81,14 +89,14 @@ const Schedule = ({ hideHeader, onSuccess, triggerToast }) => {
       const record = saved.find(h => h.id === location.state.editId);
       if (record) {
         setEditingId(record.id);
-        setFormData({
+        setFormData(prev => ({
+          ...prev, 
           purpose: record.title,
           selectedMonth: record.monthName || months[new Date().getMonth()],
           selectedDay: record.day,
-          officer: record.officer,
           laborViolation: record.laborViolation || 'Select',
           otherIssues: record.otherIssues || ''
-        });
+        }));
         setRequestingParties(record.requestingParty.split(', '));
         setRespondingParties(record.respondingParty.split(', '));
         if (record.time?.includes(' to ')) {
@@ -155,11 +163,11 @@ const Schedule = ({ hideHeader, onSuccess, triggerToast }) => {
       time: combinedTime,
       day: formData.selectedDay,
       officer: formData.officer,
-      requestingParty: validReq.join(', '), 
+      requestingParty: validReq.join(', '),
       respondingParty: validRes.join(', '),
       laborViolation: formData.laborViolation,
       otherIssues: formData.otherIssues,
-      status: "Scheduled", 
+      status: "Scheduled",
       date: `${formData.selectedMonth.substring(0, 3).toUpperCase()} ${formData.selectedDay}`,
       monthName: formData.selectedMonth,
       year: currentDate.getFullYear(),
@@ -185,13 +193,11 @@ const Schedule = ({ hideHeader, onSuccess, triggerToast }) => {
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const startingOffset = (new Date(year, month, 1).getDay() + 6) % 7;
 
-  if (showLog) return <ActivityLog onBack={() => setShowLog(false)} />;
-
   return (
     <div className="schedule-page-wrapper">
       {!hideHeader && (
         <div className="page-header-container">
-          <button onClick={() => navigate(-1)} className="back-nav-btn"><FaArrowLeft /></button>
+          <button onClick={() => navigate(-1)} className="back-nav-btn" type="button"><FaArrowLeft /></button>
           <h1 className="header-title">Schedule a Meeting</h1>
         </div>
       )}
@@ -212,45 +218,27 @@ const Schedule = ({ hideHeader, onSuccess, triggerToast }) => {
                   <h3>Unsaved Changes</h3>
                   <p>Are you sure you want to cancel? Any names entered will be lost.</p>
                   <div className="modal-footer-dual">
-                    <button className="modal-save-btn-small" onClick={() => setShowConfirmExit(false)}>Go Back</button>
-                    <button className="modal-cancel-btn" onClick={() => { setShowPartyModal(false); setShowConfirmExit(false); }}>Yes, Cancel</button>
+                    <button className="modal-save-btn-small" onClick={() => setShowConfirmExit(false)} type="button">Go Back</button>
+                    <button className="modal-cancel-btn" onClick={() => { setShowPartyModal(false); setShowConfirmExit(false); }} type="button">Yes, Cancel</button>
                   </div>
                 </div>
               ) : (
                 <>
-                  {activePartyType === 'req' && (
-                    <div className="party-section-box">
-                      <h4 className="party-section-title">Requesting Party</h4>
-                      <div className="party-list-scroll-container">
-                        {requestingParties.map((name, index) => (
-                          <div key={index} className="party-input-row">
-                            <input type="text" placeholder="Insert name" value={name} onChange={(e) => handlePartyNameChange('req', index, e.target.value)} />
-                            <button className="party-delete-btn" onClick={() => handleRemoveParty('req', index)}><FaTrash /></button>
-                          </div>
-                        ))}
-                      </div>
-                      <button className="add-another-btn" onClick={() => handleAddParty('req')}><FaPlus /> Add Another</button>
+                  <div className="party-section-box">
+                    <h4 className="party-section-title">{activePartyType === 'req' ? 'Requesting Party' : 'Responding Party'}</h4>
+                    <div className="party-list-scroll-container">
+                      {(activePartyType === 'req' ? requestingParties : respondingParties).map((name, index) => (
+                        <div key={index} className="party-input-row">
+                          <input type="text" placeholder="Insert name" value={name} onChange={(e) => handlePartyNameChange(activePartyType, index, e.target.value)} />
+                          <button className="party-delete-btn" onClick={() => handleRemoveParty(activePartyType, index)} type="button"><FaTrash /></button>
+                        </div>
+                      ))}
                     </div>
-                  )}
-
-                  {activePartyType === 'res' && (
-                    <div className="party-section-box">
-                      <h4 className="party-section-title">Responding Party</h4>
-                      <div className="party-list-scroll-container">
-                        {respondingParties.map((name, index) => (
-                          <div key={index} className="party-input-row">
-                            <input type="text" placeholder="Insert name" value={name} onChange={(e) => handlePartyNameChange('res', index, e.target.value)} />
-                            <button className="party-delete-btn" onClick={() => handleRemoveParty('res', index)}><FaTrash /></button>
-                          </div>
-                        ))}
-                      </div>
-                      <button className="add-another-btn" onClick={() => handleAddParty('res')}><FaPlus /> Add Another</button>
-                    </div>
-                  )}
-                  
+                    <button className="add-another-btn" onClick={() => handleAddParty(activePartyType)} type="button"><FaPlus /> Add Another</button>
+                  </div>
                   <div className="modal-footer-dual">
-                    <button className="modal-cancel-btn" onClick={() => setShowConfirmExit(true)}>Cancel</button>
-                    <button className="modal-save-btn-small" onClick={handleModalSave}>Save</button>
+                    <button className="modal-cancel-btn" onClick={() => setShowConfirmExit(true)} type="button">Cancel</button>
+                    <button className="modal-save-btn-small" onClick={handleModalSave} type="button">Save</button>
                   </div>
                 </>
               )}
@@ -271,11 +259,11 @@ const Schedule = ({ hideHeader, onSuccess, triggerToast }) => {
           <div className="row-group">
             <div className="input-group">
               <label>Requesting Party:</label>
-              <button className="manage-party-trigger" onClick={() => { setActivePartyType('req'); setShowPartyModal(true); }}>Manage Party</button>
+              <button className="manage-party-trigger" onClick={() => { setActivePartyType('req'); setShowPartyModal(true); }} type="button">Manage Party</button>
             </div>
             <div className="input-group">
               <label>Responding Party:</label>
-              <button className="manage-party-trigger" onClick={() => { setActivePartyType('res'); setShowPartyModal(true); }}>Manage Party</button>
+              <button className="manage-party-trigger" onClick={() => { setActivePartyType('res'); setShowPartyModal(true); }} type="button">Manage Party</button>
             </div>
           </div>
 
@@ -307,11 +295,14 @@ const Schedule = ({ hideHeader, onSuccess, triggerToast }) => {
               <label>Labor Violation / Claims:</label>
               <select className="sched-input" value={formData.laborViolation} onChange={(e) => setFormData({...formData, laborViolation: e.target.value})}>
                 <option value="Select">Select</option>
-                <option>Minimum Wage</option><option>COLA</option><option>Night Shift Differential</option>
-                <option>Overtime Pay</option><option>Holiday Pay</option><option>13th Month Pay</option>
-                <option>Service Charge</option><option>Premium Pay for Rest Day</option><option>Premium Pay for Special Day</option>
-                <option>Service Incentive Leave</option><option>Maternity Leave</option><option>Paternity Leave</option>
-                <option>Parental Leave for Solo Parent</option><option>Leave for Victims of VAWC</option><option>Special Leave for Women</option>
+                <option>Minimum Wage</option><option>COLA</option>
+                <option>Night Shift Differential</option><option>Overtime Pay</option>
+                <option>Holiday Pay</option><option>13th Month Pay</option>
+                <option>Service Charge</option><option>Premium Pay for Rest Day</option>
+                <option>Premium Pay for Special Day</option><option>Service Incentive Leave</option>
+                <option>Maternity Leave</option><option>Paternity Leave</option>
+                <option>Parental Leave for Solo Parent</option><option>Leave for Victims of VAWC</option>
+                <option>Special Leave for Women</option>
               </select>
             </div>
             <div className="input-group">
@@ -326,8 +317,16 @@ const Schedule = ({ hideHeader, onSuccess, triggerToast }) => {
           </div>
 
           <div className="sched-button-group">
-            <button className="create-btn" onClick={handleSubmit}>{editingId ? "Update" : "Create"}</button>
-            <button className="view-log-btn" onClick={() => setShowLog(true)}><FaHistory /> Activity Log</button>
+            <button className="create-btn" onClick={handleSubmit} type="button">
+              {editingId ? "Update" : "Create"}
+            </button>
+            <button
+              className="view-log-btn"
+              onClick={() => { if(onShowLog) onShowLog(); }}
+              type="button"
+            >
+              <FaHistory /> Activity Log
+            </button>
           </div>
         </div>
 

@@ -27,9 +27,17 @@ const Minutes = () => {
     return saved ? JSON.parse(saved) : [];
   });
 
+  // UPDATED: Filter to show only hearings that are Done, In Session, or Finished
   const [hearings] = useState(() => {
     const saved = localStorage.getItem("hearings");
-    return saved ? JSON.parse(saved) : [];
+    if (!saved) return [];
+    const allHearings = JSON.parse(saved);
+
+    return allHearings.filter(h => {
+      const status = h.status?.toLowerCase();
+      // Exclude Cancelled and Pending; Include Done and active sessions
+      return status !== "cancelled" && status !== "pending";
+    });
   });
 
   const [searchTerm, setSearchTerm] = useState("");
@@ -147,7 +155,7 @@ const Minutes = () => {
 
     const updatedDocs = [newFile, ...documents];
     setDocuments(updatedDocs);
-    localStorage.setItem("allMinutesFiles", JSON.stringify(updatedDocs)); // Sync immediate
+    localStorage.setItem("allMinutesFiles", JSON.stringify(updatedDocs)); 
     setShowModal(false);
     setSelectedHearingId("");
     toast.success("Minute created!");
@@ -159,7 +167,7 @@ const Minutes = () => {
     
     const updatedDocs = documents.filter(doc => !doc.selected);
     setDocuments(updatedDocs);
-    localStorage.setItem("allMinutesFiles", JSON.stringify(updatedDocs)); // Sync immediate
+    localStorage.setItem("allMinutesFiles", JSON.stringify(updatedDocs));
     
     setIsSelectionMode(false);
     toast.info(`Deleted ${selectedCount} items.`);
@@ -182,6 +190,7 @@ const Minutes = () => {
             <div className="modal-body">
               <select className="modal-select-dropdown" value={selectedHearingId} onChange={(e) => setSelectedHearingId(e.target.value)}>
                 <option value="">-- Choose Hearing --</option>
+                {/* Now shows only hearings that are in session or done */}
                 {hearings.map(h => <option key={h.id} value={h.id}>{h.title}</option>)}
               </select>
               <div className="modal-actions">

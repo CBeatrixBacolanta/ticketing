@@ -176,3 +176,22 @@
 .modal-btn-primary { background: #cc0000; color: white; border: none; padding: 10px 20px; border-radius: 10px; cursor: pointer; }
 
 .empty-msg { padding: 80px; text-align: center; color: #94a3b8; font-style: italic; }
+
+.status-pill.in-session {
+    background-color: #e6fffa;
+    color: #047481;
+    border: 1px solid #047481;
+    font-weight: bold;
+    animation: pulse 2s infinite;
+}
+
+.status-pill.pending {
+    background-color: #fef3c7;
+    color: #92400e;
+}
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.7; }
+    100% { opacity: 1; }
+}
