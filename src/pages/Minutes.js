@@ -27,15 +27,12 @@ const Minutes = () => {
     return saved ? JSON.parse(saved) : [];
   });
 
-  // UPDATED: Filter to show only hearings that are Done, In Session, or Finished
   const [hearings] = useState(() => {
     const saved = localStorage.getItem("hearings");
     if (!saved) return [];
     const allHearings = JSON.parse(saved);
-
     return allHearings.filter(h => {
       const status = h.status?.toLowerCase();
-      // Exclude Cancelled and Pending; Include Done and active sessions
       return status !== "cancelled" && status !== "pending";
     });
   });
@@ -52,19 +49,16 @@ const Minutes = () => {
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const idToHighlight = params.get('highlight');
-
     if (idToHighlight && documents.length > 0) {
       const itemIndex = documents.findIndex(d => String(d.id) === String(idToHighlight));
       if (itemIndex !== -1) {
         const targetPage = Math.ceil((itemIndex + 1) / itemsPerPage);
         setCurrentPage(targetPage);
         setHighlightId(idToHighlight);
-
         const timer = setTimeout(() => {
           setHighlightId(null); 
           navigate('/minutes', { replace: true }); 
         }, 1000);
-
         return () => clearTimeout(timer);
       }
     }
@@ -99,41 +93,40 @@ const Minutes = () => {
         String(doc.id).toLowerCase().includes(searchStr) ||
         (doc.hearingTitle && doc.hearingTitle.toLowerCase().includes(searchStr)) ||
         (doc.docketNo && doc.docketNo.toLowerCase().includes(searchStr));
-    
     const currentStatus = doc.status?.toLowerCase() || "pending";
     const matchesFilter = filterStatus === "all" || currentStatus === filterStatus.toLowerCase();
-    
     return matchesSearch && matchesFilter;
   });
 
   const handleSelectToggle = () => {
     const allVisibleSelected = filteredDocs.length > 0 && filteredDocs.every(d => d.selected);
+
+    // Click 1: Turn on mode (Manual selection)
     if (!isSelectionMode) {
       setIsSelectionMode(true);
-    } else if (allVisibleSelected) {
-      setDocuments(prev => prev.map(doc => {
-        const isVisible = filteredDocs.some(v => v.id === doc.id);
-        return isVisible ? { ...doc, selected: false } : doc;
-      }));
-    } else {
+    } 
+    // Click 2: If everything is NOT selected, select all visible
+    else if (!allVisibleSelected) {
       setDocuments(prev => prev.map(doc => {
         const isVisible = filteredDocs.some(v => v.id === doc.id);
         return isVisible ? { ...doc, selected: true } : doc;
       }));
+    } 
+    // Click 3: If everything IS selected, disable mode and unselect all
+    else {
+      setIsSelectionMode(false);
+      setDocuments(prev => prev.map(doc => ({ ...doc, selected: false })));
     }
   };
 
   const handleCreateFromHearing = () => {
     if (!selectedHearingId) return;
-    
     const linkedHearing = hearings.find(h => h.id.toString() === selectedHearingId.toString());
     const alreadyExists = documents.some(doc => doc.hearingTitle === linkedHearing.title);
-
     if (alreadyExists) {
       toast.warning(`Alert: A minute for "${linkedHearing.title}" already exists.`);
       return; 
     }
-    
     const nextNumber = documents.length > 0 
       ? Math.max(...documents.map(d => {
           const num = parseInt(String(d.id).replace(/\D/g, ''));
@@ -155,7 +148,6 @@ const Minutes = () => {
 
     const updatedDocs = [newFile, ...documents];
     setDocuments(updatedDocs);
-    localStorage.setItem("allMinutesFiles", JSON.stringify(updatedDocs)); 
     setShowModal(false);
     setSelectedHearingId("");
     toast.success("Minute created!");
@@ -164,11 +156,8 @@ const Minutes = () => {
   const handleDeleteSelected = () => {
     const selectedCount = documents.filter(d => d.selected).length;
     if (selectedCount === 0) return;
-    
     const updatedDocs = documents.filter(doc => !doc.selected);
     setDocuments(updatedDocs);
-    localStorage.setItem("allMinutesFiles", JSON.stringify(updatedDocs));
-    
     setIsSelectionMode(false);
     toast.info(`Deleted ${selectedCount} items.`);
   };
@@ -190,7 +179,6 @@ const Minutes = () => {
             <div className="modal-body">
               <select className="modal-select-dropdown" value={selectedHearingId} onChange={(e) => setSelectedHearingId(e.target.value)}>
                 <option value="">-- Choose Hearing --</option>
-                {/* Now shows only hearings that are in session or done */}
                 {hearings.map(h => <option key={h.id} value={h.id}>{h.title}</option>)}
               </select>
               <div className="modal-actions">
@@ -210,12 +198,7 @@ const Minutes = () => {
       <div className="horizontal-action-bar">
         <div className="search-box-wrapper">
           <FaSearch className="search-icon-fixed" />
-          <input 
-            type="text" 
-            placeholder="Search by Docket # or Title..." 
-            value={searchTerm} 
-            onChange={(e) => setSearchTerm(e.target.value)} 
-          />
+          <input type="text" placeholder="Search by Docket # or Title..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
         </div>
 
         <div className="filter-inline-container">
@@ -231,9 +214,14 @@ const Minutes = () => {
 
         <div className="button-actions-group">
           <button className="btn-add-fixed" onClick={() => setShowModal(true)}>ADD MINUTE</button>
-          <button className={`btn-select-fixed ${isSelectionMode ? "active-mode" : ""}`} onClick={handleSelectToggle}>
-            {!isSelectionMode ? "SELECT" : (filteredDocs.every(d => d.selected) && filteredDocs.length > 0 ? "DESELECT ALL" : "SELECT ALL")}
+          
+          <button 
+            className={`btn-select-fixed ${isSelectionMode ? "active-mode" : ""}`} 
+            onClick={handleSelectToggle}
+          >
+            {!isSelectionMode ? "SELECT" : (filteredDocs.every(d => d.selected) && filteredDocs.length > 0 ? "UNSELECT ALL" : "SELECT ALL")}
           </button>
+
           <button className="btn-delete-fixed" onClick={handleDeleteSelected} disabled={!documents.some(d => d.selected)}>DELETE</button>
         </div>
       </div>
@@ -261,6 +249,8 @@ const Minutes = () => {
                       </div>
                     </div>
                   </div>
+
+                  {/* RESTORED: Options menu logic to keep icons used and functional */}
                   <div className="options-menu" onClick={(e) => e.stopPropagation()}>
                     <FaEllipsisV className="doc-options" />
                     <div className="dropdown-menu">
@@ -282,30 +272,17 @@ const Minutes = () => {
             <div className="empty-state-container">
               <FaInbox className="empty-icon" />
               <h3>No Minutes Recorded</h3>
-              <p>Try adjusting your search or add a new minute to get started.</p>
             </div>
           )}
         </div>
         
         <footer className="grid-footer">
           <div className="pagination-controls">
-            <FaChevronLeft 
-              className={`arrow ${currentPage === 1 ? 'disabled' : ''}`} 
-              onClick={() => setCurrentPage(p => Math.max(1, p - 1))} 
-            />
+            <FaChevronLeft className={`arrow ${currentPage === 1 ? 'disabled' : ''}`} onClick={() => setCurrentPage(p => Math.max(1, p - 1))} />
             {[...Array(totalPages)].map((_, i) => (
-              <span 
-                key={i} 
-                className={`page-num ${currentPage === i + 1 ? 'active' : ''}`} 
-                onClick={() => setCurrentPage(i + 1)}
-              >
-                {i + 1}
-              </span>
+              <span key={i} className={`page-num ${currentPage === i + 1 ? 'active' : ''}`} onClick={() => setCurrentPage(i + 1)}>{i + 1}</span>
             ))}
-            <FaChevronRight 
-              className={`arrow ${currentPage === totalPages ? 'disabled' : ''}`} 
-              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} 
-            />
+            <FaChevronRight className={`arrow ${currentPage === totalPages ? 'disabled' : ''}`} onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))} />
           </div>
         </footer>
       </div>
