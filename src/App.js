@@ -13,9 +13,10 @@ import Minutes from './pages/Minutes';
 import MinutesInfo from './pages/MinutesInfo';
 import MainSched from './pages/MainSched';
 import Schedule from './pages/Schedule';
+import ViewSched from './pages/ViewSched';
 import Login from './pages/Login';
 import ForgotPassword from './pages/ForgotPassword';
-import ResetPassword from './pages/ResetPassword'; // New Import
+import ResetPassword from './pages/ResetPassword';
 
 function AppContent() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -149,8 +150,9 @@ function AppContent() {
         <Routes>
           <Route path="/dashboard" element={<Dashboard user={user} notifications={notifications} onClearAll={handleClearAll} onMarkAsRead={handleMarkAsRead} />} />
           <Route path="/notifications" element={<Notifications notifications={notifications} isFullPage={true} onClearAll={handleClearAll} onMarkAsRead={handleMarkAsRead} />} />
-          <Route path="/schedule" element={<MainSched triggerToast={triggerToast} />} />
+          <Route path="/schedule" element={<MainSched triggerToast={triggerToast} sidebarOpen={sidebarOpen} />} />
           <Route path="/schedule-form" element={<Schedule triggerToast={triggerToast} />} />
+          <Route path="/view-sched/:id" element={<ViewSched />} />
           <Route path="/remarks" element={<Remarks />} />
           <Route path="/remarks/:id" element={<Remarks />} />
           <Route path="/settings" element={<Settings user={user} onSave={handleUpdateUser} onLogout={handleLogout} onDeleteAccount={handleDeleteAccount} />} />

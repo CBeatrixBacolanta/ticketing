@@ -9,7 +9,10 @@ import {
   FaTrash,
   FaPlus,
   FaTimes,
-  FaExclamationTriangle
+  FaExclamationTriangle,
+  FaClock,
+  FaChevronUp,
+  FaChevronDown
 } from 'react-icons/fa';
 
 import { toast, ToastContainer } from 'react-toastify';
@@ -17,25 +20,27 @@ import 'react-toastify/dist/ReactToastify.css';
 
 const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
-const Schedule = ({ user, hideHeader, onSuccess, triggerToast, onShowLog }) => {
+const Schedule = ({ user, hideHeader = false, onSuccess, onCancel, triggerToast, onShowLog, initialData }) => {
   const navigate = useNavigate();
   const location = useLocation();
 
   const [showPartyModal, setShowPartyModal] = useState(false);
   const [showConfirmExit, setShowConfirmExit] = useState(false);
   const [activePartyType, setActivePartyType] = useState(null);
+  const [showStartTimePicker, setShowStartTimePicker] = useState(false);
+  const [showEndTimePicker, setShowEndTimePicker] = useState(false);
 
   const [currentTime, setCurrentTime] = useState(new Date());
   const [currentDate, setCurrentDate] = useState(new Date());
 
   const [editingId, setEditingId] = useState(null);
-  const [startTime, setStartTime] = useState("09:30");
-  const [endTime, setEndTime] = useState("10:00");
+  const [startTime, setStartTime] = useState("");
+  const [endTime, setEndTime] = useState("");
   const [requestingParties, setRequestingParties] = useState(['']);
   const [respondingParties, setRespondingParties] = useState(['']);
 
   const [formData, setFormData] = useState({
-    purpose: '',
+    activity: 'SEnA',
     selectedMonth: months[new Date().getMonth()],
     selectedDay: String(new Date().getDate()),
     laborViolation: 'Select',
@@ -49,64 +54,123 @@ const Schedule = ({ user, hideHeader, onSuccess, triggerToast, onShowLog }) => {
   };
 
   const convertTo24Hour = (timeStr) => {
-    if (!timeStr) return "09:30";
+    if (!timeStr) return "";
     const [time, modifier] = timeStr.split(' ');
+    if (!time || !modifier) return "";
     let [hours, minutes] = time.split(':');
     if (hours === '12') hours = '00';
     if (modifier === 'PM') hours = parseInt(hours, 10) + 12;
     return `${String(hours).padStart(2, '0')}:${minutes}`;
   };
 
-  // SYNC OFFICER NAME: Checks prop first, then 'currentUser' in localStorage
+  const formatTimeToAmPm = (timeStr) => {
+    if (!timeStr) return "";
+    let [hours, minutes] = timeStr.split(':');
+    hours = parseInt(hours);
+    const suffix = hours >= 12 ? 'PM' : 'AM';
+    hours = hours % 12 || 12;
+    return `${hours}:${minutes} ${suffix}`;
+  };
+
+  // Helper to fix corrupted month data
+  const fixMonthValue = (monthValue, dateString) => {
+    if (!monthValue || monthValue === '11:00 AM' || monthValue === '12:00 PM' || monthValue.includes(':')) {
+      if (dateString) {
+        const dateParts = dateString.split(' ');
+        if (dateParts[0]) {
+          const monthAbbr = dateParts[0].toUpperCase();
+          const monthMap = {
+            'JAN': 'January', 'FEB': 'February', 'MAR': 'March', 'APR': 'April',
+            'MAY': 'May', 'JUN': 'June', 'JUL': 'July', 'AUG': 'August',
+            'SEP': 'September', 'OCT': 'October', 'NOV': 'November', 'DEC': 'December'
+          };
+          return monthMap[monthAbbr] || months[new Date().getMonth()];
+        }
+      }
+      return months[new Date().getMonth()];
+    }
+    return monthValue;
+  };
+
+  // Generate unique ID function
+  const generateUniqueId = (existingIds = []) => {
+    let newId;
+    let isUnique = false;
+    
+    while (!isUnique) {
+      newId = Date.now() + Math.floor(Math.random() * 10000);
+      if (!existingIds.includes(newId)) {
+        isUnique = true;
+      }
+    }
+    return newId;
+  };
+
+  // Handle initialData prop (from MainSched - editing)
   useEffect(() => {
-    const fetchOfficer = () => {
-      const source = user || JSON.parse(localStorage.getItem('currentUser'));
+    if (initialData) {
+      setEditingId(initialData.id);
+      setFormData({
+        activity: initialData.title || 'SEnA',
+        selectedMonth: fixMonthValue(initialData.monthName, initialData.date),
+        selectedDay: String(initialData.day),
+        laborViolation: initialData.laborViolation || 'Select',
+        otherIssues: initialData.otherIssues || '',
+        officer: initialData.officer || ''
+      });
+      setRequestingParties(initialData.requestingParty ? initialData.requestingParty.split(', ') : ['']);
+      setRespondingParties(initialData.respondingParty ? initialData.respondingParty.split(', ') : ['']);
       
+      if (initialData.time?.includes(' to ')) {
+        const [start, end] = initialData.time.split(' to ');
+        setStartTime(convertTo24Hour(start));
+        setEndTime(convertTo24Hour(end));
+      }
+    }
+  }, [initialData]);
+
+  // Handle navigation from Activity Log (via location.state)
+  useEffect(() => {
+    const locationData = location.state?.initialData;
+    if (locationData && !initialData) {
+      setEditingId(locationData.id);
+      setFormData({
+        activity: locationData.title || 'SEnA',
+        selectedMonth: fixMonthValue(locationData.monthName, locationData.date),
+        selectedDay: String(locationData.day || new Date().getDate()),
+        laborViolation: locationData.laborViolation || 'Select',
+        otherIssues: locationData.otherIssues || '',
+        officer: locationData.officer || ''
+      });
+      setRequestingParties(locationData.requestingParty ? locationData.requestingParty.split(', ') : ['']);
+      setRespondingParties(locationData.respondingParty ? locationData.respondingParty.split(', ') : ['']);
+      
+      if (locationData.time?.includes(' to ')) {
+        const [start, end] = locationData.time.split(' to ');
+        setStartTime(convertTo24Hour(start));
+        setEndTime(convertTo24Hour(end));
+      }
+    }
+  }, [location.state, initialData]);
+
+  // Set officer name for new schedule
+  useEffect(() => {
+    if (!initialData && !location.state?.initialData) {
+      const source = user || JSON.parse(localStorage.getItem('currentUser'));
       if (source) {
-        console.log("Officer data found:", source);
         const first = toTitleCase(source.firstName || "");
         const mi = source.middleInitial ? `${source.middleInitial.toUpperCase().replace('.', '')}. ` : "";
         const last = toTitleCase(source.lastName || "");
         const fullName = `${first} ${mi}${last}`.trim();
-        
         setFormData(prev => ({ ...prev, officer: fullName }));
-      } else {
-        console.warn("No user data found in props or localStorage under 'currentUser'");
       }
-    };
-
-    fetchOfficer();
-  }, [user]);
+    }
+  }, [user, initialData, location.state]);
 
   useEffect(() => {
     const interval = setInterval(() => setCurrentTime(new Date()), 30000);
     return () => clearInterval(interval);
   }, []);
-
-  useEffect(() => {
-    if (location.state?.editId) {
-      const saved = JSON.parse(localStorage.getItem('hearings')) || [];
-      const record = saved.find(h => h.id === location.state.editId);
-      if (record) {
-        setEditingId(record.id);
-        setFormData(prev => ({
-          ...prev, 
-          purpose: record.title,
-          selectedMonth: record.monthName || months[new Date().getMonth()],
-          selectedDay: record.day,
-          laborViolation: record.laborViolation || 'Select',
-          otherIssues: record.otherIssues || ''
-        }));
-        setRequestingParties(record.requestingParty.split(', '));
-        setRespondingParties(record.respondingParty.split(', '));
-        if (record.time?.includes(' to ')) {
-          const [start, end] = record.time.split(' to ');
-          setStartTime(convertTo24Hour(start));
-          setEndTime(convertTo24Hour(end));
-        }
-      }
-    }
-  }, [location.state]);
 
   const handleAddParty = (type) => {
     if (type === 'req') setRequestingParties([...requestingParties, '']);
@@ -138,28 +202,35 @@ const Schedule = ({ user, hideHeader, onSuccess, triggerToast, onShowLog }) => {
     setShowPartyModal(false);
   };
 
-  const formatTimeToAmPm = (timeStr) => {
-    if (!timeStr) return "";
-    let [hours, minutes] = timeStr.split(':');
-    hours = parseInt(hours);
-    const suffix = hours >= 12 ? 'PM' : 'AM';
-    hours = hours % 12 || 12;
-    return `${hours}:${minutes} ${suffix}`;
-  };
-
   const handleSubmit = () => {
     const validReq = requestingParties.filter(n => n.trim() !== "");
     const validRes = respondingParties.filter(n => n.trim() !== "");
-    if (!formData.purpose || validReq.length === 0 || validRes.length === 0) {
-      toast.warn("Please complete the purpose and ensure both parties are named.");
+    if (!formData.activity || validReq.length === 0 || validRes.length === 0) {
+      toast.warn("Please complete the activity and ensure both parties are named.");
       return;
     }
+    
+    if (!startTime || !endTime) {
+      toast.warn("Please select both start and end time.");
+      return;
+    }
+    
     const combinedTime = `${formatTimeToAmPm(startTime)} to ${formatTimeToAmPm(endTime)}`;
     const selectedDateObj = new Date(currentDate.getFullYear(), months.indexOf(formData.selectedMonth), parseInt(formData.selectedDay));
 
+    const saved = JSON.parse(localStorage.getItem('hearings')) || [];
+    const existingIds = saved.map(h => h.id);
+    
+    let newId;
+    if (editingId) {
+      newId = editingId;
+    } else {
+      newId = generateUniqueId(existingIds);
+    }
+    
     const hearingData = {
-      id: editingId || Date.now(),
-      title: formData.purpose,
+      id: newId,
+      title: formData.activity,
       time: combinedTime,
       day: formData.selectedDay,
       officer: formData.officer,
@@ -167,24 +238,25 @@ const Schedule = ({ user, hideHeader, onSuccess, triggerToast, onShowLog }) => {
       respondingParty: validRes.join(', '),
       laborViolation: formData.laborViolation,
       otherIssues: formData.otherIssues,
-      status: "Scheduled",
+      status: initialData?.status || "Scheduled",
       date: `${formData.selectedMonth.substring(0, 3).toUpperCase()} ${formData.selectedDay}`,
       monthName: formData.selectedMonth,
       year: currentDate.getFullYear(),
       dow: selectedDateObj.toLocaleDateString('en-US', { weekday: 'long' })
     };
     
-    const saved = JSON.parse(localStorage.getItem('hearings')) || [];
-    const updated = [...saved.filter(h => h.id !== editingId), hearingData];
+    let updated;
+    if (editingId) {
+      updated = saved.map(h => h.id === editingId ? hearingData : h);
+    } else {
+      updated = [...saved, hearingData];
+    }
+      
     localStorage.setItem('hearings', JSON.stringify(updated));
     
     const msg = editingId ? "Schedule Updated!" : "Schedule Created!";
     if (triggerToast) triggerToast("success", msg); else toast.success(msg);
-    if (onSuccess) onSuccess();
-    else {
-      setFormData(prev => ({ ...prev, purpose: '', laborViolation: 'Select', otherIssues: '' }));
-      setRequestingParties(['']); setRespondingParties(['']); setEditingId(null);
-    }
+    if (onSuccess) onSuccess(hearingData); 
   };
 
   const month = currentDate.getMonth();
@@ -193,11 +265,166 @@ const Schedule = ({ user, hideHeader, onSuccess, triggerToast, onShowLog }) => {
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const startingOffset = (new Date(year, month, 1).getDay() + 6) % 7;
 
+  const handleGoBack = () => {
+    if (onCancel) {
+      onCancel();
+    } else {
+      navigate(-1);
+    }
+  };
+
+  // Number Spinner Component for Minutes
+  const NumberSpinner = ({ value, onChange, min, max, label }) => {
+    const handleIncrement = () => {
+      if (value + 1 <= max) {
+        onChange(value + 1);
+      }
+    };
+
+    const handleDecrement = () => {
+      if (value - 1 >= min) {
+        onChange(value - 1);
+      }
+    };
+
+    const handleInputChange = (e) => {
+      let newValue = parseInt(e.target.value);
+      if (isNaN(newValue)) newValue = 0;
+      if (newValue < min) newValue = min;
+      if (newValue > max) newValue = max;
+      onChange(newValue);
+    };
+
+    return (
+      <div className="number-spinner">
+        <div className="spinner-label">{label}</div>
+        <div className="spinner-controls">
+          <button type="button" className="spinner-btn" onClick={handleIncrement}>
+            <FaChevronUp />
+          </button>
+          <input 
+            type="text" 
+            className="spinner-value-input"
+            value={String(value).padStart(2, '0')}
+            onChange={handleInputChange}
+            inputMode="numeric"
+            pattern="[0-9]*"
+          />
+          <button type="button" className="spinner-btn" onClick={handleDecrement}>
+            <FaChevronDown />
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  // Custom Time Picker Component
+  const TimePicker = ({ value, onChange, onClose }) => {
+    const [selectedHour, setSelectedHour] = useState(() => {
+      if (value) {
+        const [hours] = value.split(':');
+        const hour24 = parseInt(hours);
+        let hour12 = hour24 % 12;
+        if (hour12 === 0) hour12 = 12;
+        return hour12;
+      }
+      return 9;
+    });
+    const [selectedMinute, setSelectedMinute] = useState(() => {
+      if (value) {
+        const [, minutes] = value.split(':');
+        return parseInt(minutes);
+      }
+      return 0;
+    });
+    const [selectedPeriod, setSelectedPeriod] = useState(() => {
+      if (value) {
+        const [hours] = value.split(':');
+        return parseInt(hours) >= 12 ? 'PM' : 'AM';
+      }
+      return 'AM';
+    });
+
+    const hours = [];
+    for (let i = 1; i <= 12; i++) {
+      hours.push(i);
+    }
+
+    const handleConfirm = () => {
+      let hour24 = selectedHour;
+      if (selectedPeriod === 'PM' && selectedHour !== 12) hour24 = selectedHour + 12;
+      if (selectedPeriod === 'AM' && selectedHour === 12) hour24 = 0;
+      const timeValue = `${String(hour24).padStart(2, '0')}:${String(selectedMinute).padStart(2, '0')}`;
+      onChange(timeValue);
+      onClose();
+    };
+
+    return (
+      <div className="custom-time-picker">
+        <div className="time-picker-content">
+          <div className="time-picker-header">
+            <FaClock />
+            <span>Select Time</span>
+            <button className="time-picker-close" onClick={onClose}>×</button>
+          </div>
+          <div className="time-picker-body">
+            <div className="time-column">
+              <div className="time-column-label">Hour</div>
+              <div className="time-options hour-options">
+                {hours.map(h => (
+                  <button
+                    key={h}
+                    className={`time-option ${selectedHour === h ? 'active' : ''}`}
+                    onClick={() => setSelectedHour(h)}
+                  >
+                    {String(h).padStart(2, '0')}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="time-column minute-column">
+              <div className="time-column-label">Minute</div>
+              <NumberSpinner
+                value={selectedMinute}
+                onChange={setSelectedMinute}
+                min={0}
+                max={59}
+                label="Minute"
+              />
+            </div>
+            <div className="time-column">
+              <div className="time-column-label">Period</div>
+              <div className="time-options period-options">
+                <button
+                  className={`time-option ${selectedPeriod === 'AM' ? 'active' : ''}`}
+                  onClick={() => setSelectedPeriod('AM')}
+                >
+                  AM
+                </button>
+                <button
+                  className={`time-option ${selectedPeriod === 'PM' ? 'active' : ''}`}
+                  onClick={() => setSelectedPeriod('PM')}
+                >
+                  PM
+                </button>
+              </div>
+            </div>
+          </div>
+          <div className="time-picker-footer">
+            <button className="time-picker-cancel" onClick={onClose}>Cancel</button>
+            <button className="time-picker-confirm" onClick={handleConfirm}>OK</button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="schedule-page-wrapper">
+      {/* Only show header when hideHeader is false */}
       {!hideHeader && (
         <div className="page-header-container">
-          <button onClick={() => navigate(-1)} className="back-nav-btn" type="button"><FaArrowLeft /></button>
+          <button onClick={handleGoBack} className="back-nav-btn" type="button"><FaArrowLeft /></button>
           <h1 className="header-title">Schedule a Meeting</h1>
         </div>
       )}
@@ -252,8 +479,15 @@ const Schedule = ({ user, hideHeader, onSuccess, triggerToast, onShowLog }) => {
           <h2 className="section-title">{editingId ? "Update Schedule" : "Create New Schedule"}</h2>
           
           <div className="input-group">
-            <label>Purpose:</label>
-            <input type="text" value={formData.purpose} onChange={(e) => setFormData({...formData, purpose: e.target.value})} className="sched-input" />
+            <label>Activity:</label>
+            <select 
+              value={formData.activity} 
+              onChange={(e) => setFormData({...formData, activity: e.target.value})} 
+              className="sched-input"
+            >
+              <option value="SEnA">SEnA</option>
+              <option value="Advice">Advice</option>
+            </select>
           </div>
 
           <div className="row-group">
@@ -270,22 +504,57 @@ const Schedule = ({ user, hideHeader, onSuccess, triggerToast, onShowLog }) => {
           <div className="availability-horizontal-section">
             <label className="group-label">Availability:</label>
             <div className="availability-row">
-              <div className="input-field"><span className="inline-label">Day</span>
+              <div className="input-field">
+                <span className="inline-label">Day</span>
                 <select value={formData.selectedDay} onChange={(e) => setFormData({...formData, selectedDay: e.target.value})} className="sched-input compact">
                   {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(d => <option key={d} value={d}>{d}</option>)}
                 </select>
               </div>
-              <div className="input-field"><span className="inline-label">Month</span>
+              <div className="input-field">
+                <span className="inline-label">Month</span>
                 <select value={formData.selectedMonth} onChange={(e) => setFormData({...formData, selectedMonth: e.target.value})} className="sched-input compact">
                   {months.map(m => <option key={m} value={m}>{m}</option>)}
                 </select>
               </div>
-              <div className="input-field time-field"><span className="inline-label">Time</span>
-                <div className="time-range-row">
-                  <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} className="sched-input" />
-                  <span>-</span>
-                  <input type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} className="sched-input" />
+              <div className="input-field time-field">
+                <span className="inline-label">Start Time</span>
+                <div className="time-input-wrapper" onClick={() => setShowStartTimePicker(!showStartTimePicker)}>
+                  <FaClock className="time-icon" />
+                  <input 
+                    type="text" 
+                    value={startTime ? formatTimeToAmPm(startTime) : ""} 
+                    readOnly
+                    placeholder="Select time"
+                    className="sched-input time-input-readonly"
+                  />
                 </div>
+                {showStartTimePicker && (
+                  <TimePicker 
+                    value={startTime}
+                    onChange={setStartTime}
+                    onClose={() => setShowStartTimePicker(false)}
+                  />
+                )}
+              </div>
+              <div className="input-field time-field">
+                <span className="inline-label">End Time</span>
+                <div className="time-input-wrapper" onClick={() => setShowEndTimePicker(!showEndTimePicker)}>
+                  <FaClock className="time-icon" />
+                  <input 
+                    type="text" 
+                    value={endTime ? formatTimeToAmPm(endTime) : ""} 
+                    readOnly
+                    placeholder="Select time"
+                    className="sched-input time-input-readonly"
+                  />
+                </div>
+                {showEndTimePicker && (
+                  <TimePicker 
+                    value={endTime}
+                    onChange={setEndTime}
+                    onClose={() => setShowEndTimePicker(false)}
+                  />
+                )}
               </div>
             </div>
           </div>
@@ -307,7 +576,7 @@ const Schedule = ({ user, hideHeader, onSuccess, triggerToast, onShowLog }) => {
             </div>
             <div className="input-group">
               <label>Other Issues:</label>
-              <input type="text" className="sched-input" value={formData.otherIssues} onChange={(e) => setFormData({...formData, otherIssues: e.target.value})} />
+              <input type="text" className="sched-input" value={formData.otherIssues} onChange={(e) => setFormData({...formData, otherIssues: e.target.value})} placeholder="Enter other issues" />
             </div>
           </div>
 

@@ -1,207 +1,281 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import '../styles/MainSched.css';
-import ActivityLog from './ActivityLog'; 
-import DetailedScheduleForm from './Schedule'; 
-import { 
-  FaClock, 
-  FaArrowLeft, 
-  FaPlus,
-  FaHistory,
-  FaChevronLeft,
-  FaChevronRight
-} from 'react-icons/fa';
+  import React, { useState, useEffect, useMemo, useCallback } from 'react';
+  import { useNavigate, useLocation } from 'react-router-dom';
+  import '../styles/MainSched.css';
+  import ActivityLog from './ActivityLog'; 
+  import DetailedScheduleForm from './Schedule'; 
+  import ViewSched from './ViewSched';
+  import { 
+    FaClock, 
+    FaArrowLeft, 
+    FaPlus,
+    FaHistory,
+    FaChevronLeft,
+    FaChevronRight
+  } from 'react-icons/fa';
 
-const MainSched = ({ triggerToast, sidebarOpen = true }) => {
-  const [showLog, setShowLog] = useState(false);
-  const [isCreating, setIsCreating] = useState(false);
-  
-  const [now, setNow] = useState(new Date()); 
-  const [currentDate, setCurrentDate] = useState(new Date()); 
-  const [selectedDay, setSelectedDay] = useState(new Date().getDate()); 
-  const [meetings, setMeetings] = useState([]);
+  const MainSched = ({ triggerToast, sidebarOpen = true }) => {
+    const navigate = useNavigate();
+    const location = useLocation();
 
-  useEffect(() => {
-    const timer = setInterval(() => setNow(new Date()), 60000);
-    return () => clearInterval(timer);
-  }, []);
+    const [showLog, setShowLog] = useState(false);
+    const [isCreating, setIsCreating] = useState(false);
+    const [viewingSchedule, setViewingSchedule] = useState(null); 
+    
+    const [now, setNow] = useState(new Date());
+    const [currentDate, setCurrentDate] = useState(new Date()); 
+    const [selectedDay, setSelectedDay] = useState(new Date().getDate()); 
+    const [meetings, setMeetings] = useState([]);
 
-  const loadMeetings = useCallback(() => {
-    const saved = localStorage.getItem('hearings');
-    if (saved) {
-      const allHearings = JSON.parse(saved);
-      // Only keep hearings that are NOT Cancelled and NOT Done
-      const activeOnly = allHearings.filter(h => h.status !== 'Cancelled' && h.status !== 'Done');
-      setMeetings(activeOnly);
-    } else {
-      setMeetings([]);
-    }
-  }, []);
+    // Check location state for return from Minutes
+    useEffect(() => {
+      // If we have a pending schedule to view from location state
+      if (location.state?.returnToSchedule) {
+        const scheduleData = location.state.returnToSchedule;
+        setViewingSchedule(scheduleData);
+        setIsCreating(false);
+        setShowLog(false);
+        // Clear the state so it doesn't re-trigger
+        navigate('/schedule', { replace: true, state: {} });
+      }
+    }, [location.state, navigate]);
 
-  useEffect(() => {
-    loadMeetings();
-    window.addEventListener('focus', loadMeetings);
-    window.addEventListener('storage', loadMeetings);
-    return () => {
-      window.removeEventListener('focus', loadMeetings);
-      window.removeEventListener('storage', loadMeetings);
+    useEffect(() => {
+      const timer = setInterval(() => setNow(new Date()), 60000);
+      return () => clearInterval(timer);
+    }, []);
+
+    const loadMeetings = useCallback(() => {
+      const saved = localStorage.getItem('hearings');
+      if (saved) {
+        const allHearings = JSON.parse(saved);
+        const activeOnly = allHearings.filter(h => h.status !== 'Cancelled' && h.status !== 'Done');
+        setMeetings(activeOnly);
+      } else {
+        setMeetings([]);
+      }
+    }, []);
+
+    useEffect(() => {
+      loadMeetings();
+      window.addEventListener('focus', loadMeetings);
+      window.addEventListener('storage', loadMeetings);
+      return () => {
+        window.removeEventListener('focus', loadMeetings);
+        window.removeEventListener('storage', loadMeetings);
+      };
+    }, [isCreating, loadMeetings, showLog]);
+
+    const formatPartyName = (partyData) => {
+      if (!partyData) return "N/A";
+      if (typeof partyData === 'string') {
+        const names = partyData.split(',').map(n => n.trim()).filter(n => n !== "");
+        if (names.length > 1) return `${names[0]}, et al.`;
+        return partyData;
+      }
+      if (Array.isArray(partyData)) {
+        if (partyData.length > 1) return `${partyData[0]}, et al.`;
+        return partyData[0] || "N/A";
+      }
+      return partyData;
     };
-  }, [isCreating, loadMeetings, showLog]);
 
-  const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-  const year = currentDate.getFullYear();
-  const month = currentDate.getMonth();
-  const monthName = months[month];
-  
-  const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const firstDayIndex = new Date(year, month, 1).getDay();
-  const startingOffset = firstDayIndex === 0 ? 6 : firstDayIndex - 1;
+    const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+    const monthName = months[month];
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const firstDayIndex = new Date(year, month, 1).getDay();
+    const startingOffset = firstDayIndex === 0 ? 6 : firstDayIndex - 1;
 
-  const filteredMeetings = useMemo(() => {
-    return meetings.filter(m => {
-      const meetingDay = parseInt(m.day);
-      const isSameDay = meetingDay === selectedDay;
-      const isSameMonth = m.date?.toUpperCase().includes(monthName.substring(0, 3).toUpperCase());
-      const isSameYear = m.year ? m.year === year : year === now.getFullYear();
+    const groupedMeetings = useMemo(() => {
+      const filtered = meetings.filter(m => {
+        const meetingDay = parseInt(m.day);
+        const isSameDay = meetingDay === selectedDay;
+        const savedDate = m.date || "";
+        const isSameMonth = savedDate.toLowerCase().includes(monthName.toLowerCase()) || 
+                            savedDate.toLowerCase().includes(monthName.substring(0, 3).toLowerCase());
+        const savedYear = parseInt(m.year);
+        const currentYear = currentDate.getFullYear();
+        const isSameYear = savedYear ? savedYear === currentYear : true;
+        return isSameDay && isSameMonth && isSameYear;
+      });
 
-      if (!isSameDay || !isSameMonth || !isSameYear) return false;
-
-      // Final check: filter by time to ensure it's "Upcoming"
-      try {
-        const [timePart, modifier] = m.time.split(' ');
-        let [hours, minutes] = timePart.split(':').map(Number);
+      const getTimeVal = (timeStr) => {
+        if (!timeStr) return { total: 0, hours: 0 };
+        const match = timeStr.match(/(\d+):(\d+)\s*(AM|PM)/i);
+        if (!match) return { total: 0, hours: 0 };
+        let hours = parseInt(match[1]);
+        const minutes = parseInt(match[2]);
+        const modifier = match[3].toUpperCase();
         if (modifier === 'PM' && hours !== 12) hours += 12;
         if (modifier === 'AM' && hours === 12) hours = 0;
-        const meetingDateTime = new Date(year, month, meetingDay, hours, minutes);
-        return meetingDateTime > now; 
-      } catch (e) {
-        return true; 
-      }
-    });
-  }, [meetings, selectedDay, monthName, month, year, now]);
+        return { hours, minutes, total: hours * 60 + minutes };
+      };
 
-  if (showLog) {
+      const sorted = filtered.sort((a, b) => getTimeVal(a.time).total - getTimeVal(b.time).total);
+      const groups = {};
+      sorted.forEach(m => {
+        const timeInfo = getTimeVal(m.time);
+        const hours = timeInfo.hours;
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        const displayHour = hours % 12 || 12;
+        const hourLabel = `${displayHour}:00 ${ampm}`;
+        if (!groups[hourLabel]) groups[hourLabel] = [];
+        groups[hourLabel].push(m);
+      });
+      return groups;
+    }, [meetings, selectedDay, monthName, currentDate]);
+
+    if (viewingSchedule && !isCreating) {
+      return (
+        <ViewSched 
+          scheduleData={viewingSchedule} 
+          onBack={() => {
+            setViewingSchedule(null);
+          }} 
+          onEdit={() => {
+            setIsCreating(true);
+          }} 
+          onAddMinutes={() => {
+            navigate(`/minutes-info/new`, { 
+              state: { 
+                initialData: viewingSchedule,
+                returnToSchedule: 'view',
+                scheduleId: viewingSchedule.id
+              } 
+            });
+          }} 
+        />
+      );
+    }
+
+    if (showLog) {
+      return <ActivityLog onBack={() => { setShowLog(false); loadMeetings(); }} />;
+    }
+
     return (
-      <ActivityLog 
-        onBack={() => {
-          setShowLog(false);
-          loadMeetings(); 
-        }} 
-      />
-    );
-  }
-
-  return (
-    <div className={`schedule-outer-container ${!sidebarOpen ? 'sidebar-closed' : ''}`}>
-      <div className="schedule-header">
-        <div className="header-left">
-          {isCreating && (
-            <button className="back-circle-btn" onClick={() => setIsCreating(false)}>
-              <FaArrowLeft />
+      <div className={`schedule-outer-container ${!sidebarOpen ? 'sidebar-closed' : ''}`}>
+        <div className="schedule-header">
+          <div className="header-left">
+            {isCreating && (
+              <button className="back-circle-btn" onClick={() => setIsCreating(false)}>
+                <FaArrowLeft />
+              </button>
+            )}
+            <div className="header-text">
+              <h1>{isCreating ? (viewingSchedule ? "Update Schedule" : "New Schedule") : "Schedule a Meeting"}</h1>
+              {!isCreating && <p>Your daily agenda</p>}
+            </div>
+          </div>
+          {!isCreating && (
+            <button className="create-sched-btn" onClick={() => { setViewingSchedule(null); setIsCreating(true); }}>
+              <FaPlus /> Create Schedule
             </button>
           )}
-          <div className="header-text">
-            <h1>{isCreating ? "New Schedule" : "Schedule a Meeting"}</h1>
-            {!isCreating && <p>Agenda for {monthName} {selectedDay}, {year}</p>}
-          </div>
         </div>
-        {!isCreating && (
-          <button className="create-sched-btn" onClick={() => setIsCreating(true)}>
-            <FaPlus /> Create Schedule
-          </button>
-        )}
-      </div>
 
-      <div className={isCreating ? "schedule-create-mode" : "schedule-content-grid"}>
-        {isCreating ? (
-          <DetailedScheduleForm 
-            hideHeader={true} 
-            onSuccess={() => {
-              setIsCreating(false);
-              loadMeetings(); 
-            }} 
-            onShowLog={() => setShowLog(true)} 
-            triggerToast={triggerToast} 
-          />
-        ) : (
-          <>
-            <div className="left-column-wrapper">
-              <div className="white-card meetings-card fixed-card-height">
-                <h2 className="card-title">Upcoming Meetings</h2>
-                <div className="meetings-list scrollable-agenda">
-                  {filteredMeetings.length > 0 ? (
-                    filteredMeetings.map((item) => {
-                      const monthBadge = item.date ? item.date.substring(0, 3).toUpperCase() : "---";
-                      return (
-                        <div key={item.id} className="meeting-row">
-                          <span className="time-label">{item.time}</span>
-                          <div className="meeting-blue-pill">
-                            <div className="pill-main-content">
-                              <div className="meeting-date-badge">
-                                <span>{monthBadge}</span>
-                                <strong>{item.day}</strong>
+        <div className={isCreating ? "schedule-create-mode" : "schedule-content-grid"}>
+          {isCreating ? (
+            <DetailedScheduleForm 
+              hideHeader={true} 
+              initialData={viewingSchedule}
+              onSuccess={(updatedData) => { 
+                loadMeetings(); 
+                setIsCreating(false);
+              }} 
+              onCancel={() => setIsCreating(false)}
+              onShowLog={() => setShowLog(true)} 
+              triggerToast={triggerToast} 
+            />
+          ) : (
+            <>
+              <div className="left-column-wrapper">
+                <div className="white-card meetings-card">
+                  <h2 className="card-title">Upcoming Meetings</h2>
+                  <div className="meetings-list scrollable-agenda">
+                    {Object.keys(groupedMeetings).length > 0 ? (
+                      Object.entries(groupedMeetings).map(([hour, items]) => (
+                        <div key={hour} className="hour-group">
+                          <div className="timeline-header">
+                            <span className="timeline-hour">{hour}</span>
+                            <div className="timeline-line"></div>
+                          </div>
+                          <div className="cards-stack">
+                            {items.map((item) => (
+                              <div key={item.id} className="meeting-card-professional">
+                                <div className="card-body">
+                                  <div className="party-section">
+                                    <span className="party-label">Requesting Party</span>
+                                    <h3 className="party-name">
+                                      {formatPartyName(item.requestingParty || item.title)}
+                                    </h3>
+                                    {item.laborViolation && <span className="violation-badge">Claims: {item.laborViolation}</span>}
+                                  </div>
+                                  <div className="divider-vertical"></div>
+                                  <div className="party-section">
+                                    <span className="party-label">Responding Party</span>
+                                    <h3 className="party-name">
+                                      {formatPartyName(item.respondingParty)}
+                                    </h3>
+                                  </div>
+                                  <div className="card-actions">
+                                    <button className="view-btn-styled" onClick={() => setViewingSchedule(item)}>View</button>
+                                    <span className="time-sub-label"><FaClock /> {item.time}</span>
+                                  </div>
+                                </div>
                               </div>
-                              <div className="meeting-info">
-                                <h3>{item.title || item.purpose}</h3>
-                                <p><FaClock /> {item.time}</p>
-                              </div>
-                            </div>
-                            <button className="view-pill-btn" onClick={() => setShowLog(true)}>View</button>
+                            ))}
                           </div>
                         </div>
-                      );
-                    })
-                  ) : (
-                    <div className="no-meetings-placeholder">
-                      <p>No more upcoming meetings for this day.</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            <div className="right-column-wrapper">
-              <div className="white-card calendar-mini-card fixed-card-height">
-                <div className="cal-nav">
-                  <FaChevronLeft onClick={() => setCurrentDate(new Date(year, month - 1, 1))} />
-                  <h3>{monthName} {year}</h3>
-                  <FaChevronRight onClick={() => setCurrentDate(new Date(year, month + 1, 1))} />
-                </div>
-                <div className="cal-grid-mini">
-                  {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(d => (
-                    <div key={d} className="cal-day-label">{d}</div>
-                  ))}
-                  {Array.from({ length: startingOffset }).map((_, i) => <div key={`off-${i}`} />)}
-                  {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(day => (
-                    <div 
-                      key={day} 
-                      className={`cal-date 
-                        ${selectedDay === day ? 'selected-highlight' : ''} 
-                        ${now.getDate() === day && now.getMonth() === month && now.getFullYear() === year ? 'today-dot' : ''}
-                      `}
-                      onClick={() => setSelectedDay(day)}
-                    >
-                      {day}
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="activity-log-trigger-card" onClick={() => setShowLog(true)}>
-                <div className="trigger-content">
-                  <div className="icon-wrapper"><FaHistory /></div>
-                  <div className="text-wrapper">
-                    <span className="label">System Records</span>
-                    <h3>Activity Log</h3>
+                      ))
+                    ) : (
+                      <div className="no-meetings-placeholder">
+                        <p>No meetings scheduled for this day.</p>
+                      </div>
+                    )}
                   </div>
                 </div>
-                <div className="arrow-badge"><FaChevronRight /></div>
               </div>
-            </div>
-          </>
-        )}
-      </div>
-    </div>
-  );
-};
 
-export default MainSched;
+              <div className="right-column-wrapper">
+                <div className="white-card calendar-mini-card">
+                  <div className="cal-nav">
+                    <FaChevronLeft className="nav-icon" onClick={() => setCurrentDate(new Date(year, month - 1, 1))} />
+                    <h3>{monthName} {year}</h3>
+                    <FaChevronRight className="nav-icon" onClick={() => setCurrentDate(new Date(year, month + 1, 1))} />
+                  </div>
+                  <div className="cal-grid-mini">
+                    {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(d => (
+                      <div key={d} className="cal-day-label">{d}</div>
+                    ))}
+                    {Array.from({ length: startingOffset }).map((_, i) => <div key={`off-${i}`} />)}
+                    {Array.from({ length: daysInMonth }, (_, i) => i + 1).map(day => (
+                      <div 
+                        key={day} 
+                        className={`cal-date ${selectedDay === day ? 'selected-highlight' : ''} ${now.getDate() === day && now.getMonth() === month && now.getFullYear() === year ? 'today-indicator' : ''}`}
+                        onClick={() => setSelectedDay(day)}
+                      >
+                        {day}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="activity-log-trigger-card" onClick={() => setShowLog(true)}>
+                  <div className="trigger-content">
+                    <div className="icon-wrapper"><FaHistory /></div>
+                    <div className="text-wrapper">
+                      <span className="label">System Records</span>
+                      <h3>Activity Log</h3>
+                    </div>
+                  </div>
+                  <div className="arrow-badge"><FaChevronRight /></div>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  export default MainSched;

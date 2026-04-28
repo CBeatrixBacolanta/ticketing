@@ -78,8 +78,11 @@ const ActivityLog = ({ onBack }) => {
     const savedMinutesFiles = JSON.parse(localStorage.getItem('allMinutesFiles')) || [];
     
     const processedLogs = [...savedHearings].sort((a, b) => b.id - a.id).map(hearing => {
-      const hasMinutes = savedMinutesFiles.some(m => m.hearingTitle === hearing.title);
-      return { ...hearing, hasMinutes };
+      // Find if there's a minute file linked to this hearing
+      const minuteFile = savedMinutesFiles.find(m => m.hearingTitle === hearing.title || m.matter === hearing.title);
+      const hasMinutes = !!minuteFile;
+      const minuteId = minuteFile ? minuteFile.id : null;
+      return { ...hearing, hasMinutes, minuteId };
     });
     
     if (viewMode === 'active') {
@@ -145,6 +148,30 @@ const ActivityLog = ({ onBack }) => {
     setCancelReason('');
     setOtherReason('');
     loadLogs();
+  };
+
+  // Handle minutes button click - navigate to specific minute
+  const handleViewMinutes = (row) => {
+    if (row.status === 'Cancelled') return;
+    
+    if (row.minuteId) {
+      // Navigate to existing minute - pass returnToActivityLog flag
+      navigate(`/minutes-info/${row.minuteId}`, { 
+        state: { 
+          returnToActivityLog: true,
+          scheduleId: row.id
+        } 
+      });
+    } else {
+      // No minute exists yet, create a new one from this hearing
+      navigate(`/minutes-info/new`, { 
+        state: { 
+          initialData: row,
+          returnToActivityLog: true,  // This tells MinutesInfo to return to Activity Log
+          scheduleId: row.id
+        } 
+      });
+    }
   };
 
   return (
@@ -214,7 +241,7 @@ const ActivityLog = ({ onBack }) => {
                       <td className="col-action">
                         {viewMode === 'active' ? (
                           <div className="active-action-group">
-                            <button className="arch-btn edit" title="Edit" onClick={() => navigate('/schedule-form', { state: { editId: row.id } })}><FaEdit /></button>
+                            <button className="arch-btn edit" title="Edit" onClick={() => navigate('/schedule-form', { state: { initialData: row } })}><FaEdit /></button>
                             <div className="dot-menu-container">
                               <button className="opt-btn-trigger" onClick={(e) => handleToggleMenu(e, row.id)}><FaEllipsisV /></button>
                               {activeMenuId === row.id && (
@@ -229,7 +256,13 @@ const ActivityLog = ({ onBack }) => {
                         ) : (
                           <div className="archive-actions-group">
                             <button className="arch-btn remark" title="View Remarks" onClick={() => navigate(`/remarks/${row.id}`)}><FaCommentDots /></button>
-                            <button className={`arch-btn minutes ${row.hasMinutes ? 'exists' : 'empty'} ${row.status === 'Cancelled' ? 'disabled' : ''}`} onClick={() => row.status !== 'Cancelled' && navigate('/minutes')} disabled={row.status === 'Cancelled'}><FaFileAlt /></button>
+                            <button 
+                              className={`arch-btn minutes ${row.hasMinutes ? 'exists' : 'empty'} ${row.status === 'Cancelled' ? 'disabled' : ''}`} 
+                              onClick={() => handleViewMinutes(row)} 
+                              disabled={row.status === 'Cancelled'}
+                            >
+                              <FaFileAlt />
+                            </button>
                             <button className="arch-btn delete" title="Delete" onClick={() => handleDelete(row.id)}><FaTrashAlt /></button>
                           </div>
                         )}

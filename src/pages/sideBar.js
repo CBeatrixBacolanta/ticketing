@@ -15,6 +15,31 @@ const SideBar = ({ user, isOpen, setIsOpen, onLogout }) => {
     }
   };
 
+  // Get display name (full name: first name + middle initial + last name)
+  const getDisplayName = () => {
+    if (!user) return "User";
+    const firstName = user.firstName || "";
+    const middleInitial = user.middleInitial || "";
+    const lastName = user.lastName || "";
+    
+    // Format the name with middle initial if it exists
+    let fullName = firstName;
+    
+    if (middleInitial) {
+      // Clean up the middle initial (remove any extra dots)
+      let cleanInitial = middleInitial.trim().toUpperCase().replace('.', '');
+      fullName += ` ${cleanInitial}.`;
+    }
+    
+    if (lastName) {
+      fullName += ` ${lastName}`;
+    }
+    
+    return fullName.trim() || "User";
+  };
+
+  const fullName = getDisplayName();
+
   return (
     <>
       <style>{`
@@ -65,19 +90,29 @@ const SideBar = ({ user, isOpen, setIsOpen, onLogout }) => {
         .profile-section { display: flex; flex-direction: column; align-items: center; margin-bottom: 30px; width: 100%; }
         .profile-img { width: 90px; height: 90px; border-radius: 50%; object-fit: cover; border: 2px solid white; margin-bottom: 12px; }
         
-        .ad-name { font-size: 16px; font-weight: 800; margin: 0; text-align: center; padding: 0 5px; color: white; }
-        .ad-email { font-size: 12px; color: #cbd5e0; margin-top: 2px; opacity: 0.9; word-break: break-all; text-align: center; }
+        .ad-name { 
+          font-size: 14px; 
+          font-weight: 700; 
+          margin: 0; 
+          text-align: center; 
+          padding: 0 5px; 
+          color: white; 
+          word-break: break-word;
+          max-width: 200px;
+          line-height: 1.3;
+        }
+        .ad-email { font-size: 11px; color: #cbd5e0; margin-top: 5px; opacity: 0.9; word-break: break-all; text-align: center; }
         
-        .edit-profile-btn { background: none; border: none; color: #4ba2f3; font-size: 13px; cursor: pointer; margin-top: 12px; }
+        .edit-profile-btn { background: none; border: none; color: #4ba2f3; font-size: 12px; cursor: pointer; margin-top: 10px; }
 
         nav { width: 100%; display: flex; flex-direction: column; gap: 8px; }
         
         .nav-link { 
           color: white; 
           text-decoration: none; 
-          padding: 14px; 
+          padding: 12px; 
           border-radius: 8px; 
-          font-size: 16px; 
+          font-size: 15px; 
           border: none; 
           background: none; 
           cursor: pointer;
@@ -96,6 +131,7 @@ const SideBar = ({ user, isOpen, setIsOpen, onLogout }) => {
         .logout-link {
           color: #ff4d4d !important;
           font-weight: 600;
+          margin-top: auto;
         }
         .logout-link:hover {
           background: rgba(255, 77, 77, 0.1) !important;
@@ -128,7 +164,8 @@ const SideBar = ({ user, isOpen, setIsOpen, onLogout }) => {
               <svg viewBox="0 0 24 24" fill="#718096" width="50" height="50"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" /></svg>
             </div>
           )}
-          <h4 className="ad-name">{user?.firstName || "User"}</h4>
+          {/* Display FULL NAME with middle initial (if provided) */}
+          <h4 className="ad-name">{fullName}</h4>
           <p className="ad-email">{user?.email || "email@email.com"}</p>
           <button className="edit-profile-btn" onClick={() => navigate("/edit-profile")}>Edit Profile</button>
         </div>

@@ -6,16 +6,9 @@ import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
 import { 
-  FaSearch, 
-  FaFileAlt, 
-  FaEllipsisV, 
-  FaChevronLeft, 
-  FaChevronRight, 
-  FaTrashAlt,
-  FaArchive,
-  FaCalendarCheck,
-  FaUserTie, 
-  FaInbox 
+  FaSearch, FaFileAlt, FaEllipsisV, FaChevronLeft, 
+  FaChevronRight, FaTrashAlt, FaArchive, FaCalendarCheck, 
+  FaUserTie, FaInbox, FaArrowLeft 
 } from "react-icons/fa";
 
 const Minutes = () => {
@@ -43,9 +36,20 @@ const Minutes = () => {
   const [selectedHearingId, setSelectedHearingId] = useState(""); 
   const [currentPage, setCurrentPage] = useState(1);
   const [isSelectionMode, setIsSelectionMode] = useState(false); 
-  const [highlightId, setHighlightId] = useState(null); 
+  const [highlightId, setHighlightId] = useState(null);
+  const [showBackToSchedule, setShowBackToSchedule] = useState(false);
+  
   const itemsPerPage = 12;
 
+  // Check if we need to show the back button
+  useEffect(() => {
+    const returnData = localStorage.getItem('returnToViewSched');
+    if (returnData) {
+      setShowBackToSchedule(true);
+    }
+  }, []);
+
+  // Handle highlighting when coming from search or schedule
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const idToHighlight = params.get('highlight');
@@ -58,7 +62,7 @@ const Minutes = () => {
         const timer = setTimeout(() => {
           setHighlightId(null); 
           navigate('/minutes', { replace: true }); 
-        }, 1000);
+        }, 1500);
         return () => clearTimeout(timer);
       }
     }
@@ -87,33 +91,94 @@ const Minutes = () => {
     localStorage.setItem("allMinutesFiles", JSON.stringify(documents));
   }, [documents]);
 
+  const handleBackToSchedule = () => {
+    const returnData = localStorage.getItem('returnToViewSched');
+    if (returnData) {
+      localStorage.removeItem('returnToViewSched');
+      navigate(-1);
+    } else {
+      navigate('/minutes');
+    }
+  };
+
+  // Helper function to extract party names from conference
+  const getPartyNamesFromConferences = (doc) => {
+    const partyNames = [];
+    
+    if (doc.conferences && doc.conferences.length > 0) {
+      const conf = doc.conferences[0];
+      
+      // Add requesting parties
+      if (conf.requestingParties && Array.isArray(conf.requestingParties)) {
+        conf.requestingParties.forEach(party => {
+          if (party && party.trim()) {
+            partyNames.push(party.trim().toLowerCase());
+          }
+        });
+      }
+      
+      // Add responding parties
+      if (conf.respondingParties && Array.isArray(conf.respondingParties)) {
+        conf.respondingParties.forEach(party => {
+          if (party && party.trim()) {
+            partyNames.push(party.trim().toLowerCase());
+          }
+        });
+      }
+    }
+    
+    // Also check for legacy data in requestingParty/respondingParty fields
+    if (doc.requestingParty) {
+      const parties = doc.requestingParty.split(',').map(p => p.trim().toLowerCase());
+      partyNames.push(...parties);
+    }
+    
+    if (doc.respondingParty) {
+      const parties = doc.respondingParty.split(',').map(p => p.trim().toLowerCase());
+      partyNames.push(...parties);
+    }
+    
+    return partyNames;
+  };
+
+  // Updated search functionality - searches by docket number and party names
   const filteredDocs = documents.filter(doc => {
-    const searchStr = searchTerm.toLowerCase();
-    const matchesSearch = 
-        String(doc.id).toLowerCase().includes(searchStr) ||
-        (doc.hearingTitle && doc.hearingTitle.toLowerCase().includes(searchStr)) ||
-        (doc.docketNo && doc.docketNo.toLowerCase().includes(searchStr));
+    const searchStr = searchTerm.toLowerCase().trim();
+    
+    if (!searchStr) return true;
+    
+    // Search by docket number
+    const matchesDocketNo = doc.docketNo && doc.docketNo.toLowerCase().includes(searchStr);
+    
+    // Search by hearing title (case matter)
+    const matchesHearingTitle = doc.hearingTitle && doc.hearingTitle.toLowerCase().includes(searchStr);
+    
+    // Search by party names
+    const partyNames = getPartyNamesFromConferences(doc);
+    const matchesPartyName = partyNames.some(partyName => partyName.includes(searchStr));
+    
+    // Also search by officer name
+    const matchesOfficer = doc.officer && doc.officer.toLowerCase().includes(searchStr);
+    
+    const matchesSearch = matchesDocketNo || matchesHearingTitle || matchesPartyName || matchesOfficer;
+    
+    // Apply status filter
     const currentStatus = doc.status?.toLowerCase() || "pending";
     const matchesFilter = filterStatus === "all" || currentStatus === filterStatus.toLowerCase();
+    
     return matchesSearch && matchesFilter;
   });
 
   const handleSelectToggle = () => {
     const allVisibleSelected = filteredDocs.length > 0 && filteredDocs.every(d => d.selected);
-
-    // Click 1: Turn on mode (Manual selection)
     if (!isSelectionMode) {
       setIsSelectionMode(true);
-    } 
-    // Click 2: If everything is NOT selected, select all visible
-    else if (!allVisibleSelected) {
+    } else if (!allVisibleSelected) {
       setDocuments(prev => prev.map(doc => {
         const isVisible = filteredDocs.some(v => v.id === doc.id);
         return isVisible ? { ...doc, selected: true } : doc;
       }));
-    } 
-    // Click 3: If everything IS selected, disable mode and unselect all
-    else {
+    } else {
       setIsSelectionMode(false);
       setDocuments(prev => prev.map(doc => ({ ...doc, selected: false })));
     }
@@ -123,15 +188,14 @@ const Minutes = () => {
     if (!selectedHearingId) return;
     const linkedHearing = hearings.find(h => h.id.toString() === selectedHearingId.toString());
     const alreadyExists = documents.some(doc => doc.hearingTitle === linkedHearing.title);
+    
     if (alreadyExists) {
       toast.warning(`Alert: A minute for "${linkedHearing.title}" already exists.`);
       return; 
     }
+
     const nextNumber = documents.length > 0 
-      ? Math.max(...documents.map(d => {
-          const num = parseInt(String(d.id).replace(/\D/g, ''));
-          return isNaN(num) ? 0 : num;
-        })) + 1 
+      ? Math.max(...documents.map(d => parseInt(String(d.id).replace(/\D/g, '')) || 0)) + 1 
       : 1;
     
     const newFile = {
@@ -143,11 +207,17 @@ const Minutes = () => {
       timestamp: new Date().toISOString(),
       status: "Pending", 
       selected: false,
-      conferences: [] 
+      conferences: [{
+        date: new Date().toISOString().split('T')[0],
+        time: "",
+        requestingParties: ["", "", ""],
+        respondingParties: ["", "", ""],
+        concerns: "",
+        status: "Pending"
+      }]
     };
 
-    const updatedDocs = [newFile, ...documents];
-    setDocuments(updatedDocs);
+    setDocuments([newFile, ...documents]);
     setShowModal(false);
     setSelectedHearingId("");
     toast.success("Minute created!");
@@ -156,8 +226,7 @@ const Minutes = () => {
   const handleDeleteSelected = () => {
     const selectedCount = documents.filter(d => d.selected).length;
     if (selectedCount === 0) return;
-    const updatedDocs = documents.filter(doc => !doc.selected);
-    setDocuments(updatedDocs);
+    setDocuments(documents.filter(doc => !doc.selected));
     setIsSelectionMode(false);
     toast.info(`Deleted ${selectedCount} items.`);
   };
@@ -191,14 +260,28 @@ const Minutes = () => {
       )}
 
       <header className="minutes-header">
-        <h1>Minutes of Case Proceedings</h1>
-        <p>View, manage, and track all client session minutes.</p>
+        <div className="header-with-back">
+          {showBackToSchedule && (
+            <button className="back-to-schedule-btn" onClick={handleBackToSchedule}>
+              <FaArrowLeft /> Back to Schedule
+            </button>
+          )}
+          <div className="header-text-section">
+            <h1>Minutes of Case Proceedings</h1>
+            <p>View, manage, and track all client session minutes.</p>
+          </div>
+        </div>
       </header>
 
       <div className="horizontal-action-bar">
         <div className="search-box-wrapper">
           <FaSearch className="search-icon-fixed" />
-          <input type="text" placeholder="Search by Docket # or Title..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+          <input 
+            type="text" 
+            placeholder="Search by Docket #, Party Name, or Case Title..." 
+            value={searchTerm} 
+            onChange={(e) => setSearchTerm(e.target.value)} 
+          />
         </div>
 
         <div className="filter-inline-container">
@@ -214,14 +297,9 @@ const Minutes = () => {
 
         <div className="button-actions-group">
           <button className="btn-add-fixed" onClick={() => setShowModal(true)}>ADD MINUTE</button>
-          
-          <button 
-            className={`btn-select-fixed ${isSelectionMode ? "active-mode" : ""}`} 
-            onClick={handleSelectToggle}
-          >
+          <button className={`btn-select-fixed ${isSelectionMode ? "active-mode" : ""}`} onClick={handleSelectToggle}>
             {!isSelectionMode ? "SELECT" : (filteredDocs.every(d => d.selected) && filteredDocs.length > 0 ? "UNSELECT ALL" : "SELECT ALL")}
           </button>
-
           <button className="btn-delete-fixed" onClick={handleDeleteSelected} disabled={!documents.some(d => d.selected)}>DELETE</button>
         </div>
       </div>
@@ -250,7 +328,6 @@ const Minutes = () => {
                     </div>
                   </div>
 
-                  {/* RESTORED: Options menu logic to keep icons used and functional */}
                   <div className="options-menu" onClick={(e) => e.stopPropagation()}>
                     <FaEllipsisV className="doc-options" />
                     <div className="dropdown-menu">
@@ -258,10 +335,9 @@ const Minutes = () => {
                       <button className="delete-opt" onClick={() => {
                           const updated = documents.filter(d => d.id !== doc.id);
                           setDocuments(updated);
-                          localStorage.setItem("allMinutesFiles", JSON.stringify(updated));
                           toast.info("Minute deleted.");
                       }}>
-                          <FaTrashAlt /> Delete
+                        <FaTrashAlt /> Delete
                       </button>
                     </div>
                   </div>

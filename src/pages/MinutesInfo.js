@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { 
   FaArrowLeft, FaPlus, FaTrash, FaDownload, 
   FaTimes, FaCheckSquare, FaSquare, FaExclamationCircle, FaSave 
@@ -15,6 +15,7 @@ import DoleLogo from '../assets/images/logo.png';
 const MinutesInfo = () => {
   const { fileId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
 
   // --- State Management ---
   const [currentStep, setCurrentStep] = useState(1);
@@ -40,102 +41,195 @@ const MinutesInfo = () => {
     }
   ]);
 
-  // --- Sync Loading Logic (Ensures data shows up when you open the file) ---
+  // --- Helper function to format party names ---
+  const formatParties = (partyData) => {
+    if (!partyData) return ["", "", ""];
+    const names = typeof partyData === 'string' 
+        ? partyData.split(',').map(n => n.trim()).filter(n => n !== "")
+        : Array.isArray(partyData) ? partyData : [partyData];
+    return names.length >= 3 ? names : [...names, "", "", ""].slice(0, 3);
+  };
+
+  // --- Sync Loading & inheritance Logic ---
   useEffect(() => {
     const allFiles = JSON.parse(localStorage.getItem('allMinutesFiles')) || [];
-    // Use String comparison to avoid ID type mismatches
-    const currentFile = allFiles.find(f => String(f.id) === String(fileId));
+    let currentFile = allFiles.find(f => String(f.id) === String(fileId));
     
     if (currentFile) {
+      // Load existing saved data
       setCaseData({
         docketNo: currentFile.docketNo || "",
         matter: currentFile.matter || ""
       });
-      
       if (currentFile.conferences && currentFile.conferences.length > 0) {
         setConferences(currentFile.conferences);
       }
+    } else if (location.state?.initialData) {
+      // NEW RECORD: Inherit from Schedule/ViewSched
+      const passedData = location.state.initialData;
+      
+      // Set case matter from the schedule title
+      setCaseData({
+        docketNo: "",
+        matter: passedData.title || ""
+      });
+
+      // Get the date from schedule data
+      let scheduleDate = "";
+      if (passedData.year && passedData.monthName && passedData.day) {
+        const monthIndex = new Date(Date.parse(passedData.monthName + " 1, 2000")).getMonth();
+        const dateObj = new Date(passedData.year, monthIndex, parseInt(passedData.day));
+        scheduleDate = dateObj.toISOString().split('T')[0];
+      } else {
+        scheduleDate = new Date().toISOString().split('T')[0];
+      }
+
+      // Get the start time from the schedule
+      const startTime = passedData.time?.split(' to ')[0] || "";
+
+      // Format the time to 24-hour format
+      const formatTo24Hour = (timeStr) => {
+        if (!timeStr) return "";
+        const match = timeStr.match(/(\d+):(\d+)\s*(AM|PM)/i);
+        if (!match) return "";
+        let hours = parseInt(match[1]);
+        const minutes = match[2];
+        const modifier = match[3].toUpperCase();
+        if (modifier === 'PM' && hours !== 12) hours += 12;
+        if (modifier === 'AM' && hours === 12) hours = 0;
+        return `${String(hours).padStart(2, '0')}:${minutes}`;
+      };
+
+      setConferences([{
+        date: scheduleDate,
+        time: formatTo24Hour(startTime),
+        requestingParties: formatParties(passedData.requestingParty),
+        respondingParties: formatParties(passedData.respondingParty),
+        concerns: "",  // FIXED: Should be blank, not pre-filled
+        status: "Pending",
+        paymentType: "", 
+        amountPaid: "0",
+        totalAmount: ""
+      }]);
     }
-  }, [fileId]);
+  }, [fileId, location.state]);
 
   // --- Calculations ---
-  const currentConf = conferences[currentStep - 1];
+  const currentConf = conferences[currentStep - 1] || {};
   const originalTotal = parseFloat(conferences[0]?.totalAmount) || 0;
-  
   const paidInPreviousSessions = conferences.reduce((acc, conf, index) => {
     if (index < currentStep - 1) return acc + (parseFloat(conf.amountPaid) || 0);
     return acc;
   }, 0);
-
   const balanceBroughtForward = originalTotal - paidInPreviousSessions;
   const currentSessionPaid = parseFloat(currentConf?.amountPaid) || 0;
   const remainingBalance = balanceBroughtForward - currentSessionPaid;
-  const isFullyPaid = originalTotal > 0 && remainingBalance <= 0;
+  const isFullyPaid = originalTotal > 0 && (originalTotal - conferences.reduce((a, c) => a + (parseFloat(c.amountPaid) || 0), 0)) <= 0;
 
-  // --- Save & Redirect Logic ---
+  // --- Navigation Helpers ---
+  const handleBackNavigation = () => {
+    // Check if we came from Activity Log
+    if (location.state?.returnToActivityLog) {
+      navigate('/schedule');
+      return;
+    }
+    
+    // Get the schedule data from location state
+    const scheduleData = location.state?.initialData;
+    const scheduleId = location.state?.scheduleId;
+    
+    if (scheduleData || scheduleId) {
+      // Find the full schedule data
+      let scheduleToReturn = scheduleData;
+      if (!scheduleToReturn && scheduleId) {
+        const allSchedules = JSON.parse(localStorage.getItem('hearings')) || [];
+        scheduleToReturn = allSchedules.find(s => s.id === parseInt(scheduleId));
+      }
+      
+      if (scheduleToReturn) {
+        // Navigate back to schedule with the schedule data in state
+        navigate('/schedule', { 
+          state: { returnToSchedule: scheduleToReturn }
+        });
+        return;
+      }
+    }
+    
+    // Default: go back
+    navigate(-1);
+  };
+
+  // --- Save Logic ---
   const handleSave = () => {
     const allMinutes = JSON.parse(localStorage.getItem('allMinutesFiles')) || [];
     
-    // We update the specific file by matching the ID
-    const updatedMinutes = allMinutes.map(m => {
-      if (String(m.id) === String(fileId)) {
-        return {
-          ...m,
-          docketNo: caseData.docketNo,
-          matter: caseData.matter,
-          status: currentConf.status || m.status || "Pending",
-          conferences: conferences 
-        };
+    let actualId = fileId;
+    let linkedScheduleId = null;
+    let scheduleToReturn = null;
+    const returnToActivityLog = location.state?.returnToActivityLog;
+    
+    if (fileId === 'new') {
+      actualId = allMinutes.length > 0 
+        ? Math.max(...allMinutes.map(d => parseInt(String(d.id).replace(/\D/g, '')) || 0)) + 1 
+        : Date.now();
+      
+      if (location.state?.returnToSchedule === 'view') {
+        linkedScheduleId = location.state.scheduleId;
+        // Get the full schedule data to return
+        const allSchedules = JSON.parse(localStorage.getItem('hearings')) || [];
+        scheduleToReturn = allSchedules.find(s => s.id === parseInt(linkedScheduleId));
       }
-      return m;
-    });
+    } else {
+      const existingFile = allMinutes.find(f => String(f.id) === String(fileId));
+      if (existingFile && existingFile.linkedScheduleId) {
+        linkedScheduleId = existingFile.linkedScheduleId;
+        // Get the full schedule data to return
+        const allSchedules = JSON.parse(localStorage.getItem('hearings')) || [];
+        scheduleToReturn = allSchedules.find(s => s.id === parseInt(linkedScheduleId));
+      }
+    }
+    
+    const newEntry = {
+      id: actualId,
+      docketNo: caseData.docketNo,
+      matter: caseData.matter,
+      hearingTitle: caseData.matter,
+      officer: location.state?.initialData?.officer || "N/A",
+      timestamp: new Date().toISOString(),
+      status: currentConf.status || "Pending",
+      conferences: conferences,
+      selected: false,
+      linkedScheduleId: linkedScheduleId
+    };
+
+    const index = allMinutes.findIndex(m => String(m.id) === String(actualId));
+    let updatedMinutes;
+
+    if (index !== -1) {
+      updatedMinutes = [...allMinutes];
+      updatedMinutes[index] = newEntry;
+    } else {
+      updatedMinutes = [newEntry, ...allMinutes];
+    }
 
     localStorage.setItem('allMinutesFiles', JSON.stringify(updatedMinutes));
     
-    toast.success("Changes saved successfully!", { 
-        autoClose: 1200,
-        onClose: () => navigate('/minutes')
+    toast.success("Minutes saved successfully!", { 
+      autoClose: 1500,
+      onClose: () => {
+        // Check if we came from Activity Log
+        if (returnToActivityLog) {
+          navigate('/schedule');
+        } else if (scheduleToReturn) {
+          // Navigate back to schedule with the schedule data in state
+          navigate('/schedule', { 
+            state: { returnToSchedule: scheduleToReturn }
+          });
+        } else {
+          navigate(-1);
+        }
+      }
     });
-
-    // Fallback redirect
-    setTimeout(() => {
-      navigate('/minutes');
-    }, 1500);
-  };
-
-  // --- Custom Toast Confirmation for Delete ---
-  const Msg = ({ closeToast, onConfirm, stepNum }) => (
-    <div className="custom-toast-confirm">
-      <p style={{ margin: "0 0 10px 0", fontWeight: "bold" }}>Delete Session {stepNum}?</p>
-      <div style={{ display: 'flex', gap: '10px' }}>
-        <button 
-          onClick={() => { onConfirm(); closeToast(); }} 
-          style={{ background: '#ef4444', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer' }}
-        >
-          Yes
-        </button>
-        <button onClick={closeToast} style={{ background: '#64748b', color: 'white', border: 'none', padding: '5px 10px', borderRadius: '4px', cursor: 'pointer' }}>No</button>
-      </div>
-    </div>
-  );
-
-  const handleDeleteSession = () => {
-    if (conferences.length <= 1) {
-      toast.error("Cannot delete the only remaining session.");
-      return;
-    }
-    toast(({ closeToast }) => (
-      <Msg 
-        stepNum={currentStep} 
-        closeToast={closeToast} 
-        onConfirm={() => {
-          const updatedConfs = conferences.filter((_, i) => i !== currentStep - 1);
-          setConferences(updatedConfs);
-          setCurrentStep(1); 
-          toast.info("Session removed");
-        }} 
-      />
-    ), { autoClose: false, closeOnClick: false });
   };
 
   // --- Handlers ---
@@ -195,26 +289,30 @@ const MinutesInfo = () => {
     const newVal = currentConf.paymentType === type ? "" : type;
     updateConfField('paymentType', newVal);
     if (newVal === 'Full Payment' && currentConf.totalAmount) {
-        updateConfField('amountPaid', currentConf.totalAmount);
+        updateConfField('amountPaid', balanceBroughtForward.toString());
     }
   };
 
   const handleSavePaymentTerms = () => {
     const paid = parseFloat(currentConf.amountPaid) || 0;
-    const total = parseFloat(currentConf.totalAmount) || 0;
-
     if (!currentConf.paymentType) return setPaymentError("Select a payment type.");
-    if (currentConf.paymentType === 'Full Payment') {
-      if (total <= 0) return setPaymentError("Input total amount.");
-      if (paid !== total) return setPaymentError("Amount must match total exactly.");
-    }
-    if (currentConf.paymentType === 'Partial Payment') {
-      if (total <= 0) return setPaymentError("Input agreed total.");
-      if (paid > balanceBroughtForward) return setPaymentError("Payment exceeds remaining balance.");
-    }
+    if (parseFloat(currentConf.totalAmount) <= 0) return setPaymentError("Please enter a valid total amount.");
+    if (paid > balanceBroughtForward) return setPaymentError(`Payment exceeds current balance (₱${balanceBroughtForward}).`);
 
     setPaymentError("");
     setIsPaymentModalOpen(false);
+    toast.success("Payment terms updated!");
+  };
+
+  const handleDeleteSession = () => {
+    if (conferences.length <= 1) {
+      toast.error("Cannot delete the only remaining session.");
+      return;
+    }
+    const updatedConfs = conferences.filter((_, i) => i !== currentStep - 1);
+    setConferences(updatedConfs);
+    setCurrentStep(1); 
+    toast.info("Session removed");
   };
 
   const handlePreviewPDF = () => {
@@ -225,7 +323,7 @@ const MinutesInfo = () => {
       margin: [10, 10, 10, 10],
       filename: `Minutes_${safeDocketNo}_S${currentStep}.pdf`, 
       image: { type: 'jpeg', quality: 0.98 },
-      html2canvas: { scale: 2, useCORS: true, scrollY: 0, windowWidth: element.clientWidth },
+      html2canvas: { scale: 2, useCORS: true, scrollY: 0 },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
 
@@ -233,6 +331,10 @@ const MinutesInfo = () => {
       html2pdf().set(opt).from(element).outputPdf('blob').then((blob) => {
         setPdfUrl(URL.createObjectURL(blob));
         setIsPreviewOpen(true);
+        setIsGeneratingPdf(false);
+      }).catch((error) => {
+        console.error("PDF Generation Error:", error);
+        toast.error("Failed to generate PDF");
         setIsGeneratingPdf(false);
       });
     }, 800);
@@ -260,6 +362,7 @@ const MinutesInfo = () => {
           }]);
           setCurrentStep(conferences.length + 1);
           setIsModalOpen(false);
+          toast.success("New session added!");
         }}
         onCancel={() => setIsModalOpen(false)}
       />
@@ -267,7 +370,9 @@ const MinutesInfo = () => {
       {isPaymentModalOpen && (
         <div className="preview-modal-overlay">
           <div className="payment-modal-content" style={{ background: 'white', padding: '30px', borderRadius: '15px', width: '450px', position: 'relative' }}>
-            <button className="btn-close-preview" onClick={() => setIsPaymentModalOpen(false)} style={{ position: 'absolute', right: '20px', top: '20px' }}><FaTimes /></button>
+            <button className="btn-close-preview" onClick={() => setIsPaymentModalOpen(false)} style={{ position: 'absolute', right: '20px', top: '20px', background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px' }}>
+              <FaTimes />
+            </button>
             <h2 style={{ textAlign: 'center', color: '#1a237e', marginBottom: '20px' }}>Payment Terms</h2>
             
             {paymentError && (
@@ -288,22 +393,9 @@ const MinutesInfo = () => {
             </div>
 
             <div className="balance-due-section" style={{ background: '#f8fafc', padding: '20px', borderRadius: '10px', border: '1px solid #e2e8f0' }}>
-              {currentConf.paymentType === 'Full Payment' ? (
-                <div className="full-pay-ui" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', padding: '10px 0' }}>
-                  <div style={{ position: 'relative', flex: 1 }}>
-                    <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontWeight: 'bold' }}>₱</span>
-                    <input type="number" value={currentConf.amountPaid} onChange={(e) => updateConfField('amountPaid', e.target.value)} style={{ width: '100%', padding: '8px 8px 8px 25px', borderRadius: '6px', border: '1px solid #cbd5e1' }} />
-                  </div>
-                  <span style={{ fontWeight: 'bold' }}>of</span>
-                  <div style={{ position: 'relative', flex: 1 }}>
-                    <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontWeight: 'bold' }}>₱</span>
-                    <input type="number" value={currentConf.totalAmount} onChange={(e) => updateConfField('totalAmount', e.target.value)} style={{ width: '100%', padding: '8px 8px 8px 25px', borderRadius: '6px', border: '1px solid #cbd5e1' }} />
-                  </div>
-                </div>
-              ) : currentConf.paymentType === 'Partial Payment' && (
                 <div className="partial-pay-ui">
                   <div style={{ marginBottom: '15px' }}>
-                    <label style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#64748b' }}>TOTAL AMOUNT:</label>
+                    <label style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#64748b' }}>TOTAL AGREED AMOUNT:</label>
                     {currentStep === 1 ? (
                        <div style={{ position: 'relative', marginTop: '4px' }}>
                          <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontWeight: 'bold' }}>₱</span>
@@ -314,18 +406,17 @@ const MinutesInfo = () => {
                     )}
                   </div>
                   <div style={{ marginBottom: '15px' }}>
-                    <label style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#64748b' }}>CURRENT PAYMENT:</label>
+                    <label style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#64748b' }}>SESSION PAYMENT:</label>
                     <div style={{ position: 'relative', marginTop: '4px' }}>
                         <span style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', fontWeight: 'bold' }}>₱</span>
                         <input type="number" value={currentConf.amountPaid} onChange={(e) => updateConfField('amountPaid', e.target.value)} style={{ width: '100%', padding: '8px 8px 8px 25px', border: '1px solid #cbd5e1', borderRadius: '4px' }} />
                     </div>
                   </div>
                   <div style={{ borderTop: '2px solid #cbd5e1', paddingTop: '10px', textAlign: 'right' }}>
-                    <label style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#64748b' }}>BALANCE:</label>
+                    <label style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#64748b' }}>REMAINING BALANCE:</label>
                     <p style={{ margin: 0, fontSize: '1.2rem', fontWeight: '900', color: remainingBalance <= 0 ? '#10b981' : '#ef4444' }}>₱ {remainingBalance.toLocaleString()}</p>
                   </div>
                 </div>
-              )}
             </div>
             <button className="add-name-btn" style={{ background: '#030a49', marginTop: '20px', width: '100%' }} onClick={handleSavePaymentTerms}>Update Terms</button>
           </div>
@@ -333,7 +424,6 @@ const MinutesInfo = () => {
       )}
 
       <div className={`form-card ${isGeneratingPdf ? 'is-generating-pdf' : ''}`} id="pdf-content">
-        {/* DOLE Header */}
         <div className="pdf-only-header">
             <img src={DoleLogo} alt="DOLE Logo" style={{ width: '80px', height: 'auto', display: 'block', margin: '0 auto 10px' }} />
             <p style={{ margin: '2px 0', fontWeight: 'bold', textAlign: 'center' }}>REPUBLIC OF THE PHILIPPINES</p>
@@ -349,7 +439,11 @@ const MinutesInfo = () => {
 
         <div className="form-header">
           <div className="header-left">
-            {!isGeneratingPdf && <button className="back-arrow" onClick={() => navigate('/minutes')}><FaArrowLeft /></button>}
+            {!isGeneratingPdf && (
+              <button className="back-arrow" onClick={handleBackNavigation}>
+                <FaArrowLeft />
+              </button>
+            )}
             <h2 className="title-text">DOLE - SENA (Minutes)</h2>
             {!isGeneratingPdf && (
               <div style={{ display: 'flex', gap: '10px' }}>
@@ -377,15 +471,21 @@ const MinutesInfo = () => {
         <div className="top-fields">
           <div className="field-group">
             <label>DOCKET NO:</label>
-            <input type="text" value={caseData.docketNo} onChange={(e) => setCaseData({...caseData, docketNo: e.target.value})} style={pdfInputStyle} />
+            <input type="text" value={caseData.docketNo} onChange={(e) => setCaseData({...caseData, docketNo: e.target.value})} style={pdfInputStyle} placeholder="e.g., SENA-2024-001" />
           </div>
-          <div className="field-group"><label>DATE:</label><input type={isGeneratingPdf ? "text" : "date"} value={currentConf?.date} onChange={(e) => updateConfField('date', e.target.value)} style={pdfInputStyle} /></div>
-          <div className="field-group"><label>TIME:</label><input type={isGeneratingPdf ? "text" : "time"} value={currentConf?.time} onChange={(e) => updateConfField('time', e.target.value)} style={pdfInputStyle} /></div>
+          <div className="field-group">
+            <label>DATE:</label>
+            <input type={isGeneratingPdf ? "text" : "date"} value={currentConf?.date} onChange={(e) => updateConfField('date', e.target.value)} style={pdfInputStyle} />
+          </div>
+          <div className="field-group">
+            <label>TIME:</label>
+            <input type={isGeneratingPdf ? "text" : "time"} value={currentConf?.time} onChange={(e) => updateConfField('time', e.target.value)} style={pdfInputStyle} />
+          </div>
         </div>
 
         <div className="full-field">
           <label>IN THE MATTER OF REQUEST FOR ASSISTANCE BETWEEN:</label>
-          <input type="text" value={caseData.matter} onChange={(e) => setCaseData({...caseData, matter: e.target.value})} style={pdfInputStyle} />
+          <input type="text" value={caseData.matter} onChange={(e) => setCaseData({...caseData, matter: e.target.value})} style={pdfInputStyle} placeholder="Enter case matter" />
         </div>
 
         <div className="appearance-section">
@@ -393,10 +493,10 @@ const MinutesInfo = () => {
           <div className="party-columns">
             <div className="column">
               <h4>REQUESTING PARTY</h4>
-              {currentConf?.requestingParties.map((name, i) => (
+              {currentConf?.requestingParties?.map((name, i) => (
                 <div key={i} className="input-row">
                   <span className="row-num">{i + 1}.</span>
-                  <input type="text" value={name} onChange={(e) => updateParty('requestingParties', i, e.target.value)} style={pdfInputStyle} />
+                  <input type="text" value={name} onChange={(e) => updateParty('requestingParties', i, e.target.value)} style={pdfInputStyle} placeholder="Full name" />
                   {!isGeneratingPdf && <button className="btn-delete-row" onClick={() => deletePartyRow('requestingParties', i)}><FaTrash size={12} /></button>}
                 </div>
               ))}
@@ -404,10 +504,10 @@ const MinutesInfo = () => {
             </div>
             <div className="column">
               <h4>RESPONDING PARTY</h4>
-              {currentConf?.respondingParties.map((name, i) => (
+              {currentConf?.respondingParties?.map((name, i) => (
                 <div key={i} className="input-row">
                   <span className="row-num">{i + 1}.</span>
-                  <input type="text" value={name} onChange={(e) => updateParty('respondingParties', i, e.target.value)} style={pdfInputStyle} />
+                  <input type="text" value={name} onChange={(e) => updateParty('respondingParties', i, e.target.value)} style={pdfInputStyle} placeholder="Full name" />
                   {!isGeneratingPdf && <button className="btn-delete-row" onClick={() => deletePartyRow('respondingParties', i)}><FaTrash size={12} /></button>}
                 </div>
               ))}
@@ -422,17 +522,22 @@ const MinutesInfo = () => {
             {!isGeneratingPdf && <button className="btn-payment" onClick={() => setIsPaymentModalOpen(true)}>Payment Terms</button>}
           </div>
           {!isGeneratingPdf ? (
-            <textarea placeholder="Issues and Concerns..." value={currentConf?.concerns} onChange={(e) => updateConfField('concerns', e.target.value)} />
+            <textarea 
+              placeholder="Issues and Concerns..." 
+              value={currentConf?.concerns} 
+              onChange={(e) => updateConfField('concerns', e.target.value)} 
+              rows="6"
+            />
           ) : (
             <div className="pdf-dynamic-text">{currentConf?.concerns || "No concerns recorded."}</div>
           )}
 
           {!isGeneratingPdf && (
-            <div className="form-bottom" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '25px' }}>
+            <div className="form-bottom" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginTop: '25px', flexWrap: 'wrap', gap: '15px' }}>
               <div className="status-payment-stack" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <div className="status-select-row" style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div className="status-select-row" style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                   <label style={{ fontWeight: 'bold', fontSize: '0.9rem' }}>Status:</label>
-                  <select value={currentConf?.status} onChange={(e) => updateConfField('status', e.target.value)}>
+                  <select value={currentConf?.status} onChange={(e) => updateConfField('status', e.target.value)} style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1' }}>
                     <option value="">Select</option>
                     <option value="Settled">Settled</option>
                     <option value="Partial">Settled (Partial)</option>
@@ -442,19 +547,23 @@ const MinutesInfo = () => {
                 </div>
                 {originalTotal > 0 && (
                   <div className="payment-label" style={{ background: '#f1f5f9', padding: '6px 16px', borderRadius: '20px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', width: 'fit-content' }}>
-                    <span style={{ color: '#475569', fontWeight: 'bold' }}>Amount: ₱{originalTotal.toLocaleString()}</span>
+                    <span style={{ color: '#475569', fontWeight: 'bold' }}>Agreed: ₱{originalTotal.toLocaleString()}</span>
                     <span style={{ margin: '0 12px', color: '#cbd5e1' }}>|</span>
-                    {remainingBalance <= 0 ? (
+                    {isFullyPaid ? (
                       <span style={{ color: '#10b981', fontWeight: 'bold' }}>Fully Paid</span>
                     ) : (
-                      <span style={{ color: '#ef4444', fontWeight: 'bold' }}>Balance: ₱{remainingBalance.toLocaleString()}</span>
+                      <span style={{ color: '#ef4444', fontWeight: 'bold' }}>Bal: ₱{remainingBalance.toLocaleString()}</span>
                     )}
                   </div>
                 )}
               </div>
               <div className="button-group" style={{ display: 'flex', gap: '15px' }}>
-                <button className="btn-preview" onClick={handlePreviewPDF}><FaDownload /> Preview & Download</button>
-                <button className="btn-submit" onClick={handleSave} style={{ background: '#10b981' }}><FaSave /> SAVE</button>
+                <button className="btn-preview" onClick={handlePreviewPDF} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', background: '#4f46e5', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
+                  <FaDownload /> Preview & Download
+                </button>
+                <button className="btn-submit" onClick={handleSave} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', background: '#10b981', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
+                  <FaSave /> SAVE
+                </button>
               </div>
             </div>
           )}
@@ -466,9 +575,14 @@ const MinutesInfo = () => {
           <div className="preview-modal-content">
             <div className="preview-header">
               <h3>Document Preview (Session {currentStep})</h3>
-              <button className="btn-close-preview" onClick={() => setIsPreviewOpen(false)}><FaTimes /></button>
+              <button className="btn-close-preview" onClick={() => {
+                setIsPreviewOpen(false);
+                if (pdfUrl) URL.revokeObjectURL(pdfUrl);
+              }} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px' }}>
+                <FaTimes />
+              </button>
             </div>
-            <iframe src={pdfUrl} title="PDF Preview" className="preview-iframe" />
+            <iframe src={pdfUrl} title="PDF Preview" className="preview-iframe" style={{ width: '100%', height: '80vh', border: 'none' }} />
           </div>
         </div>
       )}
