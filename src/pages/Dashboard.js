@@ -25,12 +25,13 @@ const Dashboard = ({ user, notifications, onMarkAsRead, onClearAll }) => {
   const [reportData, setReportData] = useState([]);
 
   // --- STATES FOR EARNINGS OVERVIEW ---
-  const [earningsFrequency, setEarningsFrequency] = useState('Daily');
+  const [earningsFrequency, setEarningsFrequency] = useState('Monthly');
   const [earningsViewYear, setEarningsViewYear] = useState(now.getFullYear());
   const [earningsViewMonth, setEarningsViewMonth] = useState(now.getMonth());
   const [totalEarnings, setTotalEarnings] = useState({ daily: 0, weekly: 0, monthly: 0, yearly: 0 });
-  const [earningsTrend, setEarningsTrend] = useState([]);
+  const [dailyTrend, setDailyTrend] = useState([]);
   const [weeklyTrend, setWeeklyTrend] = useState([]);
+  const [monthlyTrend, setMonthlyTrend] = useState([]);
   const [yearlyTrend, setYearlyTrend] = useState([]);
   const [fullEarningsData, setFullEarningsData] = useState({});
 
@@ -63,145 +64,188 @@ const Dashboard = ({ user, notifications, onMarkAsRead, onClearAll }) => {
     return () => window.removeEventListener('storage', loadData);
   }, []);
 
-  // --- BUILD COMPLETE HISTORICAL EARNINGS DATA ---
-  useEffect(() => {
-    const buildHistoricalData = () => {
-      const allFiles = JSON.parse(localStorage.getItem('allMinutesFiles')) || [];
-      const historicalData = {};
-      
-      // Initialize structure for years 2020-2030
-      for (let year = 2020; year <= 2030; year++) {
-        historicalData[year] = {};
-        for (let month = 0; month < 12; month++) {
-          historicalData[year][month] = {
-            total: 0,
-            days: Array.from({ length: 31 }, (_, i) => ({ day: i + 1, income: 0 }))
-          };
-        }
+  // --- BUILD COMPLETE HISTORICAL EARNINGS DATA (moved to a function so it can be called on updates) ---
+  const buildHistoricalData = useCallback(() => {
+    const allFiles = JSON.parse(localStorage.getItem('allMinutesFiles')) || [];
+    console.log('📊 Building earnings data from minutes files:', allFiles.length);
+    
+    const historicalData = {};
+    
+    // Initialize structure for years 2020-2030
+    for (let year = 2020; year <= 2030; year++) {
+      historicalData[year] = {};
+      for (let month = 0; month < 12; month++) {
+        historicalData[year][month] = {
+          total: 0,
+          days: Array.from({ length: 31 }, (_, i) => ({ day: i + 1, income: 0 }))
+        };
       }
+    }
 
-      allFiles.forEach(file => {
-        if (file.conferences && Array.isArray(file.conferences)) {
-          file.conferences.forEach(conf => {
-            const amount = parseFloat(conf.amountPaid) || 0;
+    allFiles.forEach(file => {
+      if (file.conferences && Array.isArray(file.conferences)) {
+        file.conferences.forEach((conf) => {
+          // Get the amountPaid from the conference
+          const amount = parseFloat(conf.amountPaid) || 0;
+          
+          if (conf.date && amount > 0) {
+            const cDate = new Date(conf.date);
             
-            if (conf.date && amount > 0) {
-              const cDate = new Date(conf.date);
+            if (!isNaN(cDate.getTime())) {
+              const confYear = cDate.getFullYear();
+              const confMonth = cDate.getMonth();
+              const confDay = cDate.getDate();
               
-              if (!isNaN(cDate.getTime())) {
-                const confYear = cDate.getFullYear();
-                const confMonth = cDate.getMonth();
-                const confDay = cDate.getDate();
-                
-                if (historicalData[confYear] && historicalData[confYear][confMonth]) {
-                  historicalData[confYear][confMonth].total += amount;
-                  if (historicalData[confYear][confMonth].days[confDay - 1]) {
-                    historicalData[confYear][confMonth].days[confDay - 1].income += amount;
-                  }
+              if (historicalData[confYear] && historicalData[confYear][confMonth]) {
+                historicalData[confYear][confMonth].total += amount;
+                if (historicalData[confYear][confMonth].days[confDay - 1]) {
+                  historicalData[confYear][confMonth].days[confDay - 1].income += amount;
                 }
               }
             }
-          });
-        }
-      });
-
-      setFullEarningsData(historicalData);
-    };
-
-    buildHistoricalData();
-  }, []);
-
-  // --- UPDATE DISPLAYED EARNINGS BASED ON SELECTED YEAR/MONTH/FREQUENCY ---
-  useEffect(() => {
-    const updateEarningsDisplay = () => {
-      const today = new Date();
-      const currentMonth = today.getMonth();
-      const currentYear = today.getFullYear();
-      
-      // Calculate current day earnings (today)
-      let dailyEarnings = 0;
-      if (fullEarningsData[currentYear] && fullEarningsData[currentYear][currentMonth]) {
-        const todayDay = today.getDate();
-        const todayData = fullEarningsData[currentYear][currentMonth].days[todayDay - 1];
-        if (todayData) {
-          dailyEarnings = todayData.income;
-        }
-      }
-
-      // Calculate current week earnings (Mon-Sun)
-      let weeklyEarnings = 0;
-      const startOfWeek = new Date(today);
-      const day = startOfWeek.getDay();
-      const diffToMonday = (day === 0 ? -6 : 1) - day;
-      startOfWeek.setDate(today.getDate() + diffToMonday);
-      startOfWeek.setHours(0, 0, 0, 0);
-      
-      const endOfWeek = new Date(startOfWeek);
-      endOfWeek.setDate(startOfWeek.getDate() + 6);
-      endOfWeek.setHours(23, 59, 59, 999);
-
-      // Calculate weekly trend
-      const weeklyDays = [];
-      for (let i = 0; i < 7; i++) {
-        const date = new Date(startOfWeek);
-        date.setDate(startOfWeek.getDate() + i);
-        const dYear = date.getFullYear();
-        const dMonth = date.getMonth();
-        const dDay = date.getDate();
-        
-        let dayIncome = 0;
-        if (fullEarningsData[dYear] && fullEarningsData[dYear][dMonth]) {
-          const dayData = fullEarningsData[dYear][dMonth].days[dDay - 1];
-          if (dayData) {
-            dayIncome = dayData.income;
-            weeklyEarnings += dayIncome;
           }
-        }
-        
-        weeklyDays.push({
-          label: date.toLocaleDateString('en-US', { weekday: 'short' }),
-          fullDate: date.toDateString(),
-          income: dayIncome
         });
       }
-      setWeeklyTrend(weeklyDays);
+    });
+    
+    setFullEarningsData(historicalData);
+    return historicalData;
+  }, []);
 
-      // Calculate yearly earnings for selected view year
-      let yearlyEarnings = 0;
-      const yearlyTrendData = Array.from({ length: 12 }, (_, i) => ({ 
-        month: monthNames[i], 
-        income: 0 
-      }));
+  // --- REFRESH EARNINGS DATA WHEN LOCALSTORAGE CHANGES ---
+  useEffect(() => {
+    // Initial build
+    buildHistoricalData();
+    
+    // Listen for storage events (when other tabs/components update localStorage)
+    const handleStorageChange = (e) => {
+      if (e.key === 'allMinutesFiles') {
+        console.log('🔄 Minutes files updated, refreshing earnings data...');
+        buildHistoricalData();
+      }
+    };
+    
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Also listen for custom event (for same-tab updates)
+    const handleMinutesUpdated = () => {
+      console.log('🔄 Minutes updated event received, refreshing earnings data...');
+      buildHistoricalData();
+    };
+    
+    window.addEventListener('minutesUpdated', handleMinutesUpdated);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('minutesUpdated', handleMinutesUpdated);
+    };
+  }, [buildHistoricalData]);
+
+  // --- EARNINGS UPDATE FUNCTIONS ---
+  const updateDailyEarnings = useCallback(() => {
+    let dailyData = Array.from({ length: 31 }, (_, i) => ({ day: i + 1, income: 0 }));
+    let totalDaily = 0;
+    
+    if (fullEarningsData[earningsViewYear] && fullEarningsData[earningsViewYear][earningsViewMonth]) {
+      dailyData = fullEarningsData[earningsViewYear][earningsViewMonth].days;
+      totalDaily = fullEarningsData[earningsViewYear][earningsViewMonth].total;
+    }
+    
+    setDailyTrend(dailyData);
+    setTotalEarnings(prev => ({ ...prev, daily: totalDaily }));
+  }, [fullEarningsData, earningsViewYear, earningsViewMonth]);
+
+  const updateWeeklyEarnings = useCallback(() => {
+    const weeklyData = [];
+    let totalWeekly = 0;
+    
+    if (fullEarningsData[earningsViewYear] && fullEarningsData[earningsViewYear][earningsViewMonth]) {
+      const monthDays = fullEarningsData[earningsViewYear][earningsViewMonth].days;
       
-      if (fullEarningsData[earningsViewYear]) {
+      // Get the actual number of days in the selected month
+      const daysInMonth = new Date(earningsViewYear, earningsViewMonth + 1, 0).getDate();
+      
+      // Calculate weeks
+      const weekRanges = [
+        { week: 'Week 1', start: 1, end: Math.min(7, daysInMonth) },
+        { week: 'Week 2', start: 8, end: Math.min(14, daysInMonth) },
+        { week: 'Week 3', start: 15, end: Math.min(21, daysInMonth) },
+        { week: 'Week 4', start: 22, end: Math.min(28, daysInMonth) }
+      ];
+      
+      if (daysInMonth > 28) {
+        weekRanges.push({ week: 'Week 5', start: 29, end: daysInMonth });
+      }
+      
+      weekRanges.forEach(range => {
+        let weekIncome = 0;
+        for (let day = range.start; day <= range.end; day++) {
+          if (monthDays[day - 1]) {
+            weekIncome += monthDays[day - 1].income;
+          }
+        }
+        weeklyData.push({
+          week: range.week,
+          income: weekIncome
+        });
+        totalWeekly += weekIncome;
+      });
+    }
+    
+    setWeeklyTrend(weeklyData);
+    setTotalEarnings(prev => ({ ...prev, weekly: totalWeekly }));
+  }, [fullEarningsData, earningsViewYear, earningsViewMonth]);
+
+  const updateMonthlyEarnings = useCallback(() => {
+    const monthlyData = [];
+    let totalMonthly = 0;
+    
+    if (fullEarningsData[earningsViewYear]) {
+      for (let month = 0; month < 12; month++) {
+        const monthTotal = fullEarningsData[earningsViewYear][month].total;
+        monthlyData.push({
+          month: monthNames[month],
+          income: monthTotal
+        });
+        totalMonthly += monthTotal;
+      }
+    }
+    
+    setMonthlyTrend(monthlyData);
+    setTotalEarnings(prev => ({ ...prev, monthly: totalMonthly }));
+  }, [fullEarningsData, earningsViewYear, monthNames]);
+
+  const updateYearlyEarnings = useCallback(() => {
+    const yearlyData = [];
+    let totalYearly = 0;
+    
+    for (let year = 2020; year <= 2030; year++) {
+      let yearTotal = 0;
+      if (fullEarningsData[year]) {
         for (let month = 0; month < 12; month++) {
-          const monthTotal = fullEarningsData[earningsViewYear][month].total;
-          yearlyTrendData[month].income = monthTotal;
-          yearlyEarnings += monthTotal;
+          if (fullEarningsData[year][month]) {
+            yearTotal += fullEarningsData[year][month].total;
+          }
         }
       }
-      setYearlyTrend(yearlyTrendData);
-
-      // Calculate monthly earnings for selected view month/year
-      let monthlyEarnings = 0;
-      let monthlyTrendData = Array.from({ length: 31 }, (_, i) => ({ day: i + 1, income: 0 }));
-      
-      if (fullEarningsData[earningsViewYear] && fullEarningsData[earningsViewYear][earningsViewMonth]) {
-        monthlyTrendData = fullEarningsData[earningsViewYear][earningsViewMonth].days;
-        monthlyEarnings = fullEarningsData[earningsViewYear][earningsViewMonth].total;
-      }
-      setEarningsTrend(monthlyTrendData);
-
-      setTotalEarnings({ 
-        daily: dailyEarnings, 
-        weekly: weeklyEarnings, 
-        monthly: monthlyEarnings, 
-        yearly: yearlyEarnings 
+      yearlyData.push({
+        year: year,
+        income: yearTotal
       });
-    };
+      totalYearly += yearTotal;
+    }
+    
+    setYearlyTrend(yearlyData);
+    setTotalEarnings(prev => ({ ...prev, yearly: totalYearly }));
+  }, [fullEarningsData]);
 
-    updateEarningsDisplay();
-  }, [fullEarningsData, earningsViewYear, earningsViewMonth, monthNames]);
+  // --- UPDATE ALL EARNINGS DATA ---
+  useEffect(() => {
+    updateDailyEarnings();
+    updateWeeklyEarnings();
+    updateMonthlyEarnings();
+    updateYearlyEarnings();
+  }, [updateDailyEarnings, updateWeeklyEarnings, updateMonthlyEarnings, updateYearlyEarnings]);
 
   useEffect(() => {
     const processGraphData = () => {
@@ -257,15 +301,13 @@ const Dashboard = ({ user, notifications, onMarkAsRead, onClearAll }) => {
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
   // --- EXPORT EARNINGS DATA AS CSV ---
-  const exportEarningsCSV = useCallback(() => {
+  const exportEarningsCSV = () => {
     let csvContent = "Year,Month,Day,Income\n";
     
-    // Helper function to append to csvContent
-    const appendToCSV = (text) => {
-      csvContent += text;
+    const addToCSV = (line) => {
+      csvContent += line;
     };
     
-    // Export all years from 2020 to 2030
     for (let year = 2020; year <= 2030; year++) {
       if (fullEarningsData[year]) {
         for (let month = 0; month < 12; month++) {
@@ -273,7 +315,7 @@ const Dashboard = ({ user, notifications, onMarkAsRead, onClearAll }) => {
             const monthData = fullEarningsData[year][month];
             monthData.days.forEach(dayData => {
               if (dayData.income > 0) {
-                appendToCSV(`${year},${monthNames[month]},${dayData.day},${dayData.income}\n`);
+                addToCSV(`${year},${monthNames[month]},${dayData.day},${dayData.income}\n`);
               }
             });
           }
@@ -281,25 +323,23 @@ const Dashboard = ({ user, notifications, onMarkAsRead, onClearAll }) => {
       }
     }
     
-    // Add monthly totals
-    appendToCSV("\nMonthly Totals\n");
-    appendToCSV("Year,Month,Total Income\n");
+    addToCSV("\nMonthly Totals\n");
+    addToCSV("Year,Month,Total Income\n");
     for (let year = 2020; year <= 2030; year++) {
       if (fullEarningsData[year]) {
         for (let month = 0; month < 12; month++) {
           if (fullEarningsData[year][month]) {
             const monthTotal = fullEarningsData[year][month].total;
             if (monthTotal > 0) {
-              appendToCSV(`${year},${monthNames[month]},${monthTotal}\n`);
+              addToCSV(`${year},${monthNames[month]},${monthTotal}\n`);
             }
           }
         }
       }
     }
     
-    // Add yearly totals
-    appendToCSV("\nYearly Totals\n");
-    appendToCSV("Year,Total Income\n");
+    addToCSV("\nYearly Totals\n");
+    addToCSV("Year,Total Income\n");
     for (let year = 2020; year <= 2030; year++) {
       let yearTotal = 0;
       if (fullEarningsData[year]) {
@@ -310,11 +350,10 @@ const Dashboard = ({ user, notifications, onMarkAsRead, onClearAll }) => {
         }
       }
       if (yearTotal > 0) {
-        appendToCSV(`${year},${yearTotal}\n`);
+        addToCSV(`${year},${yearTotal}\n`);
       }
     }
     
-    // Create and download the file
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -324,61 +363,52 @@ const Dashboard = ({ user, notifications, onMarkAsRead, onClearAll }) => {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-  }, [fullEarningsData, monthNames]);
+  };
 
   // Get chart data based on selected frequency
-  const getChartData = useCallback(() => {
+  const getChartData = () => {
     switch(earningsFrequency.toLowerCase()) {
       case 'daily':
-        const today = new Date();
-        const todayEarnings = totalEarnings.daily;
-        return [{ day: `Today (${today.toLocaleDateString()})`, income: todayEarnings }];
-      
+        return dailyTrend;
       case 'weekly':
         return weeklyTrend;
-      
       case 'monthly':
-        return earningsTrend;
-      
+        return monthlyTrend;
       case 'yearly':
         return yearlyTrend;
-      
       default:
-        return earningsTrend;
+        return monthlyTrend;
     }
-  }, [earningsFrequency, totalEarnings.daily, weeklyTrend, earningsTrend, yearlyTrend]);
+  };
 
-  // Get X-axis data key based on frequency
-  const getXAxisDataKey = useCallback(() => {
+  const getXAxisDataKey = () => {
     switch(earningsFrequency.toLowerCase()) {
       case 'daily': return 'day';
-      case 'weekly': return 'label';
-      case 'monthly': return 'day';
-      case 'yearly': return 'month';
-      default: return 'day';
+      case 'weekly': return 'week';
+      case 'monthly': return 'month';
+      case 'yearly': return 'year';
+      default: return 'month';
     }
-  }, [earningsFrequency]);
+  };
 
-  // Get Y-axis domain based on frequency
-  const getYAxisDomain = useCallback(() => {
+  const getYAxisDomain = () => {
     const chartData = getChartData();
     const maxIncome = Math.max(...chartData.map(d => d.income), 100);
     return [0, Math.ceil(maxIncome / 100) * 100 + 100];
-  }, [getChartData]);
+  };
 
-  // Get Y-axis ticks based on frequency
-  const getYAxisTicks = useCallback(() => {
-    const maxIncome = Math.max(...getChartData().map(d => d.income), 100);
+  const getYAxisTicks = () => {
+    const chartData = getChartData();
+    const maxIncome = Math.max(...chartData.map(d => d.income), 100);
     const step = Math.ceil(maxIncome / 5 / 100) * 100;
     const ticks = [];
     for (let i = 0; i <= maxIncome + step; i += step) {
       ticks.push(i);
     }
     return ticks.length > 1 ? ticks : [0, maxIncome];
-  }, [getChartData]);
+  };
 
-  // Get the current earnings total based on selected frequency
-  const getCurrentEarningsTotal = useCallback(() => {
+  const getCurrentEarningsTotal = () => {
     switch(earningsFrequency.toLowerCase()) {
       case 'daily': 
         return totalEarnings.daily;
@@ -389,25 +419,39 @@ const Dashboard = ({ user, notifications, onMarkAsRead, onClearAll }) => {
       case 'yearly': 
         return totalEarnings.yearly;
       default: 
-        return 0;
+        return totalEarnings.monthly;
     }
-  }, [earningsFrequency, totalEarnings]);
+  };
 
-  // Get chart title based on frequency and selected period
-  const getChartTitle = useCallback(() => {
+  const getChartTitle = () => {
     switch(earningsFrequency.toLowerCase()) {
       case 'daily':
-        return 'Today\'s Income';
+        return `Daily Income (${monthNames[earningsViewMonth]} ${earningsViewYear})`;
       case 'weekly':
-        return 'Weekly Income (Calendar Week: Mon-Sun)';
+        return `Weekly Income (${monthNames[earningsViewMonth]} ${earningsViewYear})`;
       case 'monthly':
-        return `Monthly Income (${monthNames[earningsViewMonth]} ${earningsViewYear})`;
+        return `Monthly Income (${earningsViewYear})`;
       case 'yearly':
-        return `Yearly Income (${earningsViewYear})`;
+        return 'Yearly Income (2020-2030)';
       default:
-        return `${earningsFrequency} Income Report`;
+        return 'Income Report';
     }
-  }, [earningsFrequency, earningsViewMonth, earningsViewYear, monthNames]);
+  };
+
+  const getXAxisInterval = () => {
+    switch(earningsFrequency.toLowerCase()) {
+      case 'daily': 
+        return Math.floor(31 / 10);
+      case 'weekly': 
+        return 0;
+      case 'monthly': 
+        return 0;
+      case 'yearly': 
+        return 1;
+      default: 
+        return 0;
+    }
+  };
 
   return (
     <div className="dashboard-container">
@@ -441,7 +485,6 @@ const Dashboard = ({ user, notifications, onMarkAsRead, onClearAll }) => {
       </div>
 
       <main className="dashboard-content">
-        {/* --- ANIMATED WELCOME HEADER --- */}
         <header className={`dashboard-header-main welcome-entrance ${isVisible ? 'visible' : ''}`}>
           <div className="welcome-section">
             <h1>Hello {currentName},</h1>
@@ -537,9 +580,38 @@ const Dashboard = ({ user, notifications, onMarkAsRead, onClearAll }) => {
               ))}
             </div>
             
-            {/* Year/Month Selectors - Show when Monthly or Yearly is selected */}
             <div className="period-selectors">
-              {(earningsFrequency === 'Monthly' || earningsFrequency === 'Yearly') && (
+              {(earningsFrequency === 'Daily' || earningsFrequency === 'Weekly') && (
+                <>
+                  <div className="select-group">
+                    <label>Year:</label>
+                    <select 
+                      className="period-dropdown"
+                      value={earningsViewYear}
+                      onChange={(e) => setEarningsViewYear(parseInt(e.target.value))}
+                    >
+                      {Array.from({ length: 11 }, (_, i) => 2020 + i).map(year => (
+                        <option key={year} value={year}>{year}</option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  <div className="select-group">
+                    <label>Month:</label>
+                    <select 
+                      className="period-dropdown"
+                      value={earningsViewMonth}
+                      onChange={(e) => setEarningsViewMonth(parseInt(e.target.value))}
+                    >
+                      {monthNames.map((month, index) => (
+                        <option key={month} value={index}>{month}</option>
+                      ))}
+                    </select>
+                  </div>
+                </>
+              )}
+              
+              {earningsFrequency === 'Monthly' && (
                 <div className="select-group">
                   <label>Year:</label>
                   <select 
@@ -553,21 +625,6 @@ const Dashboard = ({ user, notifications, onMarkAsRead, onClearAll }) => {
                   </select>
                 </div>
               )}
-              
-              {earningsFrequency === 'Monthly' && (
-                <div className="select-group">
-                  <label>Month:</label>
-                  <select 
-                    className="period-dropdown"
-                    value={earningsViewMonth}
-                    onChange={(e) => setEarningsViewMonth(parseInt(e.target.value))}
-                  >
-                    {monthNames.map((month, index) => (
-                      <option key={month} value={index}>{month}</option>
-                    ))}
-                  </select>
-                </div>
-              )}
             </div>
           </div>
 
@@ -576,7 +633,6 @@ const Dashboard = ({ user, notifications, onMarkAsRead, onClearAll }) => {
               <h3 className="earnings-subtitle">{getChartTitle()}</h3>
             </div>
 
-            {/* Total Earnings Display */}
             <div className="earnings-total-display">
               <span className="total-label">
                 Total {earningsFrequency} Earnings:
@@ -592,17 +648,16 @@ const Dashboard = ({ user, notifications, onMarkAsRead, onClearAll }) => {
                   data={getChartData()} 
                   margin={{ top: 20, right: 30, left: 20, bottom: 10 }}
                 >
-                  <CartesianGrid 
-                    strokeDasharray="0" 
-                    vertical={false} 
-                    stroke="#f0f0f0" 
-                  />
+                  <CartesianGrid strokeDasharray="0" vertical={false} stroke="#f0f0f0" />
                   <XAxis 
                     dataKey={getXAxisDataKey()} 
                     tick={{ fontSize: 12, fontWeight: 600, fill: '#1a1a1a' }} 
                     axisLine={{ stroke: '#e0e0e0' }} 
                     tickLine={false}
-                    interval={earningsFrequency.toLowerCase() === 'monthly' ? Math.floor(31 / 8) : 0}
+                    interval={getXAxisInterval()}
+                    angle={earningsFrequency === 'Monthly' ? -45 : 0}
+                    textAnchor={earningsFrequency === 'Monthly' ? 'end' : 'middle'}
+                    height={earningsFrequency === 'Monthly' ? 60 : 30}
                   />
                   <YAxis 
                     tick={{ fontSize: 12, fontWeight: 600, fill: '#003399' }} 
@@ -623,10 +678,10 @@ const Dashboard = ({ user, notifications, onMarkAsRead, onClearAll }) => {
                     formatter={(value) => [`₱${value.toLocaleString()}`, 'Earnings']}
                     labelFormatter={(label, payload) => {
                       const freq = earningsFrequency.toLowerCase();
-                      if (freq === 'daily') return label;
-                      if (freq === 'weekly') return `Day: ${label}`;
-                      if (freq === 'monthly') return `Day ${label}`;
-                      if (freq === 'yearly') return label;
+                      if (freq === 'daily') return `Day ${label}`;
+                      if (freq === 'weekly') return label;
+                      if (freq === 'monthly') return label;
+                      if (freq === 'yearly') return `Year ${label}`;
                       return label;
                     }}
                   />
@@ -642,7 +697,6 @@ const Dashboard = ({ user, notifications, onMarkAsRead, onClearAll }) => {
               </ResponsiveContainer>
             </div>
 
-            {/* Help text to explain what each view shows */}
             <div style={{
               marginTop: '15px',
               padding: '10px',
@@ -651,10 +705,10 @@ const Dashboard = ({ user, notifications, onMarkAsRead, onClearAll }) => {
               textAlign: 'center',
               borderTop: '1px solid #eee'
             }}>
-              {earningsFrequency === 'Daily' && '📅 Showing today\'s earnings only'}
-              {earningsFrequency === 'Weekly' && '📊 Showing earnings for the current calendar week (Mon-Sun)'}
-              {earningsFrequency === 'Monthly' && `📈 Showing daily earnings for ${monthNames[earningsViewMonth]} ${earningsViewYear}`}
-              {earningsFrequency === 'Yearly' && `📆 Showing monthly earnings for ${earningsViewYear}`}
+              {earningsFrequency === 'Daily' && `📅 Showing daily earnings for each day in ${monthNames[earningsViewMonth]} ${earningsViewYear}`}
+              {earningsFrequency === 'Weekly' && `📊 Showing weekly earnings breakdown for ${monthNames[earningsViewMonth]} ${earningsViewYear}`}
+              {earningsFrequency === 'Monthly' && `📈 Showing total earnings for each month in ${earningsViewYear}`}
+              {earningsFrequency === 'Yearly' && `📆 Showing total earnings for each year from 2020 to 2030`}
             </div>
           </div>
         </section>
