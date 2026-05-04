@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom'; 
 import '../styles/ActivityLog.css';
+import { toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import { 
   FaArrowLeft, FaEdit, FaHistory, FaListUl, 
   FaEllipsisV, FaFileAlt, FaCommentDots, FaTrashAlt,
@@ -20,6 +22,78 @@ const ActivityLog = ({ onBack }) => {
 
   const navigate = useNavigate();
   const dropdownRef = useRef(null);
+
+  // Helper function to format party names for display (same as Minutes.js)
+  const formatCaseTitle = useCallback((requestingParties, respondingParties) => {
+    let requestingText = "";
+    let respondingText = "";
+    
+    if (requestingParties && requestingParties.length > 0) {
+      const validRequesting = requestingParties.filter(p => p && p.trim());
+      if (validRequesting.length === 1) {
+        requestingText = validRequesting[0];
+      } else if (validRequesting.length > 1) {
+        requestingText = `${validRequesting[0]}, et al.`;
+      }
+    }
+    
+    if (respondingParties && respondingParties.length > 0) {
+      const validResponding = respondingParties.filter(p => p && p.trim());
+      if (validResponding.length === 1) {
+        respondingText = validResponding[0];
+      } else if (validResponding.length > 1) {
+        respondingText = `${validResponding[0]}, et al.`;
+      }
+    }
+    
+    if (requestingText && respondingText) {
+      return `${requestingText} v. ${respondingText}`;
+    } else if (requestingText) {
+      return requestingText;
+    } else if (respondingText) {
+      return respondingText;
+    }
+    
+    return "Untitled Case";
+  }, []);
+
+  // Helper function to get parties from hearing
+  const getPartiesFromHearing = useCallback((hearing) => {
+    const requestingParties = hearing.requestingParty ? 
+      hearing.requestingParty.split(',').map(p => p.trim()).filter(p => p !== "") : [];
+    const respondingParties = hearing.respondingParty ? 
+      hearing.respondingParty.split(',').map(p => p.trim()).filter(p => p !== "") : [];
+    return { requestingParties, respondingParties };
+  }, []);
+
+  // Helper function to check if a minute matches a hearing
+  const doesMinuteMatchHearing = useCallback((minute, hearing) => {
+    if (minute.linkedScheduleId && minute.linkedScheduleId === hearing.id) {
+      return true;
+    }
+    
+    const { requestingParties, respondingParties } = getPartiesFromHearing(hearing);
+    const formattedTitle = formatCaseTitle(requestingParties, respondingParties);
+    
+    if (minute.hearingTitle === formattedTitle) return true;
+    if (minute.matter === formattedTitle) return true;
+    if (minute.hearingTitle === hearing.title) return true;
+    if (minute.matter === hearing.title) return true;
+    
+    if (minute.conferences && minute.conferences.length > 0) {
+      const conf = minute.conferences[0];
+      const minuteRequesting = conf.requestingParties?.join(', ') || '';
+      const minuteResponding = conf.respondingParties?.join(', ') || '';
+      const hearingRequesting = requestingParties.join(', ');
+      const hearingResponding = respondingParties.join(', ');
+      
+      if (minuteRequesting === hearingRequesting && minuteResponding === hearingResponding) {
+        return true;
+      }
+    }
+    
+    return false;
+  }, [getPartiesFromHearing, formatCaseTitle]);
 
   // 1. Live Status Timer
   useEffect(() => {
@@ -78,8 +152,7 @@ const ActivityLog = ({ onBack }) => {
     const savedMinutesFiles = JSON.parse(localStorage.getItem('allMinutesFiles')) || [];
     
     const processedLogs = [...savedHearings].sort((a, b) => b.id - a.id).map(hearing => {
-      // Find if there's a minute file linked to this hearing
-      const minuteFile = savedMinutesFiles.find(m => m.hearingTitle === hearing.title || m.matter === hearing.title);
+      const minuteFile = savedMinutesFiles.find(minute => doesMinuteMatchHearing(minute, hearing));
       const hasMinutes = !!minuteFile;
       const minuteId = minuteFile ? minuteFile.id : null;
       return { ...hearing, hasMinutes, minuteId };
@@ -96,10 +169,24 @@ const ActivityLog = ({ onBack }) => {
         return status === 'done' || status === 'cancelled';
       }));
     }
-  }, [viewMode]);
+  }, [viewMode, doesMinuteMatchHearing]);
 
   useEffect(() => {
     loadLogs();
+  }, [loadLogs]);
+
+  // Listen for storage events to refresh
+  useEffect(() => {
+    const handleStorageChange = () => {
+      loadLogs();
+    };
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('minutesUpdated', handleStorageChange);
+    
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('minutesUpdated', handleStorageChange);
+    };
   }, [loadLogs]);
 
   // 5. Action Handlers
@@ -116,6 +203,7 @@ const ActivityLog = ({ onBack }) => {
     window.dispatchEvent(new Event('storage'));
     loadLogs();
     setActiveMenuId(null);
+    toast.success("Hearing archived successfully!");
   };
 
   const handleDelete = (id) => {
@@ -126,6 +214,7 @@ const ActivityLog = ({ onBack }) => {
       window.dispatchEvent(new Event('storage'));
       loadLogs();
       setActiveMenuId(null);
+      toast.success("Record deleted successfully!");
     }
   };
 
@@ -137,7 +226,7 @@ const ActivityLog = ({ onBack }) => {
 
   const submitCancellation = () => {
     const finalReason = cancelReason === 'Other' ? otherReason : cancelReason;
-    if (!finalReason) return alert("Please select a reason.");
+    if (!finalReason) return toast.warning("Please select a reason.");
     const saved = JSON.parse(localStorage.getItem('hearings')) || [];
     const updated = saved.map(h => 
       h.id === selectedHearing.id ? { ...h, status: 'Cancelled', cancelReason: finalReason } : h
@@ -148,14 +237,14 @@ const ActivityLog = ({ onBack }) => {
     setCancelReason('');
     setOtherReason('');
     loadLogs();
+    toast.info("Hearing cancelled successfully!");
   };
 
-  // Handle minutes button click - navigate to specific minute
+  // Handle minutes button click - navigate to specific minute with proper linking
   const handleViewMinutes = (row) => {
     if (row.status === 'Cancelled') return;
     
     if (row.minuteId) {
-      // Navigate to existing minute - pass returnToActivityLog flag
       navigate(`/minutes-info/${row.minuteId}`, { 
         state: { 
           returnToActivityLog: true,
@@ -163,11 +252,21 @@ const ActivityLog = ({ onBack }) => {
         } 
       });
     } else {
-      // No minute exists yet, create a new one from this hearing
+      const { requestingParties, respondingParties } = getPartiesFromHearing(row);
+      const formattedTitle = formatCaseTitle(requestingParties, respondingParties);
+      
+      const initialDataWithFormatting = {
+        ...row,
+        title: row.title || formattedTitle,
+        hearingTitle: formattedTitle,
+        matter: "",
+        linkedScheduleId: row.id
+      };
+      
       navigate(`/minutes-info/new`, { 
         state: { 
-          initialData: row,
-          returnToActivityLog: true,  // This tells MinutesInfo to return to Activity Log
+          initialData: initialDataWithFormatting,
+          returnToActivityLog: true,
           scheduleId: row.id
         } 
       });
@@ -241,6 +340,13 @@ const ActivityLog = ({ onBack }) => {
                       <td className="col-action">
                         {viewMode === 'active' ? (
                           <div className="active-action-group">
+                            <button 
+                              className={`arch-btn minutes-active ${row.hasMinutes ? 'exists' : 'empty'}`} 
+                              title={row.hasMinutes ? "View/Edit Minutes" : "Create Minutes"}
+                              onClick={() => handleViewMinutes(row)}
+                            >
+                              <FaFileAlt />
+                            </button>
                             <button className="arch-btn edit" title="Edit" onClick={() => navigate('/schedule-form', { state: { initialData: row } })}><FaEdit /></button>
                             <div className="dot-menu-container">
                               <button className="opt-btn-trigger" onClick={(e) => handleToggleMenu(e, row.id)}><FaEllipsisV /></button>
@@ -271,7 +377,9 @@ const ActivityLog = ({ onBack }) => {
                   );
                 })
               ) : (
-                <tr><td colSpan="7" className="empty-msg">No {viewMode} records found.</td></tr>
+                <tr>
+                  <td colSpan="7" className="empty-msg">No {viewMode} records found.</td>
+                </tr>
               )}
             </tbody>
           </table>

@@ -311,92 +311,44 @@ body {
     z-index: 1000;
 }
 
-@media (max-width: 900px) { .summary-grid { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 900px) { 
+    .summary-grid { grid-template-columns: repeat(3, 1fr); } 
+}
+
 @media (max-width: 600px) { 
     .summary-grid { grid-template-columns: repeat(2, 1fr); }
     .side-notif-panel { width: 300px; }
 }
 
-/* --- DAILY REPORT SECTION --- */
+/* --- REDESIGNED DAILY REPORT SECTION (Matching Earnings Overview Line Chart) --- */
 .daily-report-section {
-    margin-top: 120px;
+    margin-top: 40px;
+    margin-bottom: 40px;
 }
 
-/* Header & Filters */
-.reports-header-container {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 25px;
-}
-
-.reports-title {
-    font-size: 24px;
-    font-weight: 800;
-    color: #030a49;
-    margin: 0;
-}
-
-.reports-filters {
-    display: flex;
-    gap: 20px;
-    align-items: center;
-    flex-wrap: nowrap;
-    white-space: nowrap;
-}
-
-.reports-select-group {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    white-space: nowrap;
-}
-
-.reports-select-group span {
-    font-size: 14px;
-    font-weight: 600;
-    color: #4a5568;
-}
-
-.month-dropdown {
-    padding: 8px 12px;
-    border-radius: 5px;
-    border: 1px solid #cbd5e0;
-    outline: none;
+.daily-report-main-card {
     background: white;
-    font-size: 13px;
-    transition: border-color 0.2s ease;
-    cursor: pointer;
-}
-
-.month-dropdown:hover {
-    border-color: #003399;
-}
-
-.month-dropdown:focus {
-    border-color: #003399;
-    box-shadow: 0 0 0 3px rgba(0, 51, 153, 0.1);
-}
-
-/* Main Card Layout */
-.reports-main-card {
-    background: #ededed;
-    border-radius: 15px;
-    padding: 40px;
+    border-radius: 20px;
+    padding: 35px;
     min-height: 450px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
+    transition: box-shadow 0.2s ease;
 }
 
-.reports-grid-layout {
+.daily-report-main-card:hover {
+    box-shadow: 0 6px 25px rgba(0, 0, 0, 0.08);
+}
+
+.daily-report-layout {
     display: flex;
     gap: 50px;
 }
 
-/* Officer Profile Section */
-.officer-summary {
+.officer-summary-daily {
     flex: 1;
     max-width: 220px;
     text-align: center;
-    border-right: 2px solid #cbd5e0;
+    border-right: 2px solid #e8ecff;
     padding-right: 40px;
 }
 
@@ -407,12 +359,15 @@ body {
     margin: 0 auto 15px;
     padding: 3px;
     background: white;
+    border-radius: 50%;
+    overflow: hidden;
 }
 
 .officer-avatar-wrapper img {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    border-radius: 50%;
 }
 
 .avatar-placeholder {
@@ -421,10 +376,11 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #cbd5e0;
+    background: linear-gradient(135deg, #e0e7ff 0%, #c7d2fe 100%);
     color: #4a5568;
     font-size: 2rem;
     font-weight: bold;
+    border-radius: 50%;
 }
 
 .officer-name {
@@ -440,82 +396,43 @@ body {
     color: #4a5568;
 }
 
-.officer-email-text {
-    font-size: 11px;
-    color: #718096;
-    margin-top: 10px;
-    word-break: break-all;
-}
-
-/* Graph Section */
-.graph-section-wrapper {
+.daily-graph-wrapper {
     flex: 4;
 }
 
-.shadow-glow {
-    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+.daily-total-display {
+    padding: 15px 20px;
+    margin-bottom: 20px;
+    background: #f8f9ff;
+    border-radius: 10px;
+    border: 1px solid #e8ecff;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: background 0.2s ease;
 }
 
-@media (max-width: 1200px) {
-    .reports-grid-layout {
-        flex-direction: column;
-        gap: 30px;
-    }
-    
-    .officer-summary {
-        border-right: none;
-        border-bottom: 2px solid #cbd5e0;
-        padding-right: 0;
-        padding-bottom: 30px;
-        max-width: 100%;
-    }
+.daily-total-display:hover {
+    background: #f0f2ff;
 }
 
-.header-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
+.graph-container {
+    width: 100%;
+    min-height: 350px;
 }
 
-.clear-all-btn {
-  background: none;
-  border: none;
-  color: #d9534f;
-  font-size: 0.85rem;
-  cursor: pointer;
-  padding: 5px 0;
-  text-decoration: underline;
+.daily-graph-footer {
+    margin-top: 20px;
+    padding: 12px;
+    font-size: 0.75rem;
+    color: #888;
+    text-align: center;
+    border-top: 1px solid #eee;
 }
 
-.clear-all-btn:hover {
-    color: #ff0000;
-}
-
-.see-all-link {
-  background: #030a49;
-  color: white;
-  border: none;
-  padding: 8px 15px;
-  border-radius: 5px;
-  width: 100%;
-  cursor: pointer;
-  font-weight: bold;
-  transition: background 0.2s ease;
-}
-
-.see-all-link:hover {
-  background: #050f6e;
-}
-
-.notif-scroll-area {
-  max-height: 70vh;
-  overflow-y: auto;
-}
-
-/* --- REFINED EARNINGS OVERVIEW STYLES --- */
+/* --- EARNINGS OVERVIEW SECTION --- */
 .earnings-overview-section {
-    margin-top: 80px; 
+    margin-top: 40px;
     margin-bottom: 50px;
     display: flex;
     flex-direction: column;
@@ -667,16 +584,6 @@ body {
     transition: all 0.3s ease;
 }
 
-.fade-out {
-    opacity: 0;
-    transform: translateY(10px);
-}
-
-.fade-in {
-    opacity: 1;
-    transform: translateY(0);
-}
-
 /* Smooth tooltip transitions */
 .recharts-tooltip-wrapper {
     transition: transform 0.15s ease, opacity 0.15s ease !important;
@@ -725,7 +632,9 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 10px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 15px;
 }
 
 .export-csv-btn {
@@ -762,27 +671,36 @@ body {
     margin-top: 20px;
     padding-top: 20px;
     border-top: 1px solid rgba(255, 255, 255, 0.2);
+    flex-wrap: wrap;
 }
 
 .select-group {
     display: flex;
     align-items: center;
     gap: 10px;
+    flex-wrap: wrap;
 }
 
 .select-group label {
-    color: rgba(255, 255, 255, 0.9);
+    color: #030a49;
     font-size: 0.9rem;
     font-weight: 600;
     white-space: nowrap;
 }
 
+.reports-filters {
+    display: flex;
+    gap: 20px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
 .period-dropdown {
     padding: 8px 15px;
     border-radius: 8px;
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    background: rgba(255, 255, 255, 0.1);
-    color: white;
+    border: 1px solid #cbd5e0;
+    background: white;
+    color: #333;
     font-size: 0.9rem;
     font-weight: 500;
     cursor: pointer;
@@ -792,18 +710,186 @@ body {
 }
 
 .period-dropdown:hover {
+    border-color: #003399;
+    box-shadow: 0 2px 8px rgba(0, 51, 153, 0.1);
+}
+
+.period-dropdown:focus {
+    border-color: #003399;
+    box-shadow: 0 0 0 3px rgba(0, 51, 153, 0.1);
+}
+
+/* Dark background period dropdown for earnings section */
+.earnings-frequency-card .period-dropdown {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.3);
+    color: white;
+}
+
+.earnings-frequency-card .period-dropdown:hover {
     background: rgba(255, 255, 255, 0.2);
     border-color: rgba(255, 255, 255, 0.5);
 }
 
-.period-dropdown:focus {
-    background: rgba(255, 255, 255, 0.2);
-    border-color: rgba(255, 255, 255, 0.6);
-    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.1);
-}
-
-.period-dropdown option {
+.earnings-frequency-card .period-dropdown option {
     background: #003399;
     color: white;
+}
+
+.graph-footer {
+    margin-top: 15px;
     padding: 10px;
+    font-size: 0.75rem;
+    color: #888;
+    text-align: center;
+    border-top: 1px solid #eee;
+}
+
+/* Responsive adjustments for daily report */
+@media (max-width: 1200px) {
+    .daily-report-layout {
+        flex-direction: column;
+        gap: 30px;
+    }
+    
+    .officer-summary-daily {
+        border-right: none;
+        border-bottom: 2px solid #e8ecff;
+        padding-right: 0;
+        padding-bottom: 30px;
+        max-width: 100%;
+    }
+}
+
+@media (max-width: 768px) {
+    .daily-report-main-card {
+        padding: 20px;
+    }
+    
+    .earnings-report-main-card {
+        padding: 20px;
+    }
+    
+    .earnings-frequency-card {
+        padding: 20px;
+    }
+    
+    .dashboard-content {
+        padding: 15px 20px;
+    }
+    
+    .reports-filters {
+        flex-direction: column;
+        align-items: stretch;
+        width: 100%;
+    }
+    
+    .select-group {
+        justify-content: space-between;
+        width: 100%;
+    }
+    
+    .period-dropdown {
+        flex: 1;
+    }
+    
+    .earnings-header-with-actions {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    
+    .period-selectors {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .frequency-toggle-group {
+        flex-wrap: wrap;
+    }
+    
+    .freq-btn {
+        padding: 8px 0;
+        font-size: 0.75rem;
+    }
+}
+h2.reports-title {
+    color: #030a49;
+}
+
+/* Case Title Styling - A v. D format */
+.case-title-container {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.requesting-party,
+.responding-party {
+  font-weight: 600;
+}
+
+.vs-separator {
+  font-weight: 800;
+  font-size: 13px;
+  color: #d32f2f;
+  background: rgba(211, 47, 47, 0.12);
+  padding: 2px 8px;
+  border-radius: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  letter-spacing: 0.5px;
+}
+
+/* Activity Badge */
+.activity-badge-small {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 14px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.activity-badge-small.sena {
+  background-color: #e8f5e9;
+  color: #2e7d32;
+  border: 1px solid #a5d6a7;
+}
+
+.activity-badge-small.advice {
+  background-color: #e3f2fd;
+  color: #1565c0;
+  border: 1px solid #90caf9;
+}
+
+/* Meta Info Row */
+.doc-meta-info {
+  margin-top: 6px;
+}
+
+.meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.meta-row span {
+  font-size: 11px;
+  color: #666;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.time-stamp {
+  color: #888;
 }

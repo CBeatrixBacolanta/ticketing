@@ -53,9 +53,11 @@
 }
 
 .header-text-section p {
-  margin-bottom: 12px;
-  color: #64748b;
+    margin-bottom: 15px;
+    color: #64748b;
+    margin-top: -9px;
 }
+
 
 /* --- HORIZONTAL ACTION BAR --- */
 .horizontal-action-bar { 
@@ -149,12 +151,12 @@
 .btn-delete-fixed { background: #ff1f1f; }
 .btn-delete-fixed:disabled { opacity: 0.5; cursor: not-allowed; }
 
-/* --- MAIN GRID CONTAINER --- */
+/* --- MAIN GRID CONTAINER - FIXED HEIGHT --- */
 .grid-container-fixed { 
   background-color: #030a49; 
   border-radius: 15px; 
   padding: 25px; 
-  height: 520px; 
+  height: 540px;
   display: flex; 
   flex-direction: column; 
   box-shadow: 0 10px 25px rgba(0,0,0,0.2);
@@ -164,6 +166,7 @@
   flex: 1; 
   overflow-y: auto; 
   padding-right: 8px; 
+  min-height: 0;  /* Important: allows flex child to respect fixed height parent */
 }
 
 .doc-grid-scroll-area::-webkit-scrollbar { width: 6px; }
@@ -215,16 +218,39 @@
   min-width: 0;
 }
 
+/* File Icon Colors based on Status - IMPORTANT: These must be specific */
 .doc-icon { 
   font-size: 28px; 
   flex-shrink: 0; 
   margin-top: 2px;
+  transition: color 0.3s ease;
 }
 
-.doc-icon.settled { color: #42d701; }
-.doc-icon.partial { color: #ff9800; }
-.doc-icon.lack-of-interest { color: #9e9e9e; }
-.doc-icon.approval-for-endorsement { color: #2196f3; }
+/* Status-based icon colors - using !important to ensure they apply */
+.doc-icon.settled { 
+  color: #4caf50 !important; 
+}
+
+.doc-icon.partial { 
+  color: #ff9800 !important; 
+}
+
+.doc-icon.lack-of-interest { 
+  color: #9e9e9e !important; 
+}
+
+.doc-icon.approval-for-endorsement { 
+  color: #2196f3 !important; 
+}
+
+.doc-icon.pending { 
+  color: #888 !important; 
+}
+
+/* Fallback for any status */
+.doc-icon {
+  color: #888;
+}
 
 .doc-details { 
   display: flex; 
@@ -235,30 +261,40 @@
   min-width: 0;
 }
 
-/* Case Title with styled "v." separator */
-.doc-id {
-  font-size: 15px;
+/* Case Title Styling - A v. D format */
+.case-title-container {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 14px;
   font-weight: 600;
   color: #1a1a1a;
-  margin-bottom: 4px;
-  line-height: 1.4;
-  word-break: break-word;
 }
 
-.case-title {
+.requesting-party,
+.responding-party {
   font-weight: 600;
-  line-height: 1.4;
+  color: #1a1a1a;
 }
 
 .vs-separator {
-  font-weight: 800 !important;
-  font-size: 1.05em !important;
+  font-weight: 800;
+  font-size: 12px;
   color: #d32f2f !important;
-  padding: 2px 6px !important;
-  border-radius: 6px !important;
-  display: inline-block !important;
-  margin: 0 2px !important;
-  letter-spacing: 0.5px !important;
+  background: rgba(211, 47, 47, 0.12) !important;
+  padding: 2px 10px !important;
+  border-radius: 16px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-width: 36px;
+  letter-spacing: 0.5px;
+}
+
+/* Activity Badge Styles */
+.doc-activity-type {
+  margin: 4px 0;
 }
 
 .activity-badge-small {
@@ -268,7 +304,7 @@
   font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.8px;
+  letter-spacing: 0.5px;
 }
 
 .activity-badge-small.sena {
@@ -355,7 +391,7 @@
 .dropdown-menu button:hover { background-color: #f8f9fa; }
 .dropdown-menu button.delete-opt { color: #ff1f1f; }
 
-/* --- PAGINATION - FIXED HORIZONTAL DISPLAY --- */
+/* --- PAGINATION --- */
 .grid-footer { 
   display: flex; 
   justify-content: flex-end; 
@@ -365,72 +401,93 @@
 }
 
 .pagination-controls { 
-  display: flex !important;
-  flex-direction: row !important;
-  align-items: center !important;
-  gap: 8px !important;
+  display: flex; 
+  align-items: center; 
+  gap: 8px; 
   color: white; 
   flex-wrap: wrap;
+  justify-content: center;
 }
 
 .page-num { 
   cursor: pointer; 
-  opacity: 0.5; 
-  padding: 5px 10px; 
-  font-weight: 700; 
+  opacity: 0.7; 
+  padding: 6px 12px; 
+  font-weight: 600; 
   font-size: 14px;
-  display: inline-block;
-  min-width: 32px;
-  text-align: center;
-  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  height: 36px;
+  border-radius: 8px;
   transition: all 0.2s ease;
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
 }
 
-.page-num:hover {
-  opacity: 0.8;
-  background: rgba(255, 255, 255, 0.1);
+.page-num:hover:not(.dots) {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.25);
+  transform: scale(1.05);
+  color: #ffde00;
 }
 
 .page-num.active { 
   opacity: 1; 
-  color: #ffde00; 
-  background: rgba(255, 222, 0, 0.2);
-  border-radius: 6px;
+  color: #ffde00 !important; 
+  background: rgba(255, 222, 0, 0.3);
+  font-weight: 700;
 }
 
+.page-num.dots {
+  cursor: default;
+  opacity: 0.5;
+  background: transparent;
+  color: white;
+}
+
+.page-num.dots:hover {
+  background: transparent;
+  transform: none;
+  color: white;
+}
+
+/* Arrow Styles - Clean arrow shape without oval background */
 .arrow { 
   cursor: pointer; 
-  font-size: 14px; 
-  opacity: 0.8; 
-  padding: 5px 8px;
-  border-radius: 6px;
+  font-size: 20px; 
+  padding: 4px 8px;
+  border-radius: 4px;
   transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  color: #ffde00 !important;
+  font-weight: bold;
+  width: 32px;
+  height: 32px;
 }
 
 .arrow:hover:not(.disabled) {
   opacity: 1;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 222, 0, 0.2);
+  transform: scale(1.1);
+  color: #ffffff !important;
+  border-radius: 6px;
 }
 
 .arrow.disabled { 
-  opacity: 0.2; 
+  opacity: 0.3; 
   cursor: not-allowed; 
+  color: rgba(255, 255, 255, 0.4) !important;
+  background: transparent;
 }
 
-/* Force pagination controls to be horizontal - additional override */
-.grid-footer .pagination-controls {
-  display: flex !important;
-  flex-direction: row !important;
-  align-items: center !important;
-  gap: 8px !important;
-  flex-wrap: wrap !important;
-}
-
-.grid-footer .pagination-controls .page-num,
-.grid-footer .pagination-controls .arrow {
-  display: inline-flex !important;
-  align-items: center !important;
-  justify-content: center !important;
+.arrow.disabled:hover {
+  transform: none;
+  background: transparent;
 }
 
 /* --- EMPTY STATE --- */
@@ -552,7 +609,138 @@
     grid-template-columns: 1fr;
   }
   
-  .pagination-controls {
-    justify-content: center;
+  .case-title-container {
+    flex-wrap: wrap;
   }
+  
+  .meta-row {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  
+  .meta-row span {
+    white-space: normal;
+  }
+  
+  .grid-container-fixed {
+    height: auto;
+    min-height: 480px;
+  }
+  
+  .pagination-controls {
+    gap: 4px;
+  }
+  
+  .page-num {
+    padding: 4px 8px;
+    min-width: 28px;
+    height: 28px;
+    font-size: 12px;
+  }
+  
+  .arrow {
+    padding: 4px 8px;
+    width: 28px;
+    height: 28px;
+    font-size: 16px;
+  }
+}
+
+/* Badges Row - Activity and Status side by side */
+.badges-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0;
+  flex-wrap: wrap;
+}
+
+/* Activity Badge Styles */
+.activity-badge-small {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 14px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.activity-badge-small.sena {
+  background-color: #e8f5e9;
+  color: #2e7d32;
+  border: 1px solid #a5d6a7;
+}
+
+.activity-badge-small.advice {
+  background-color: #e3f2fd;
+  color: #1565c0;
+  border: 1px solid #90caf9;
+}
+
+/* Status Badge Styles */
+.status-badge-small {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 14px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.status-badge-small.settled {
+  background-color: #e8f5e9;
+  color: #2e7d32;
+  border: 1px solid #a5d6a7;
+}
+
+.status-badge-small.partial {
+  background-color: #fff3e0;
+  color: #ef6c00;
+  border: 1px solid #ffcc80;
+}
+
+.status-badge-small.lack-of-interest {
+  background-color: #f5f5f5;
+  color: #757575;
+  border: 1px solid #e0e0e0;
+}
+
+.status-badge-small.approval-for-endorsement {
+  background-color: #e3f2fd;
+  color: #1565c0;
+  border: 1px solid #90caf9;
+}
+
+.status-badge-small.pending {
+  background-color: #fce4ec;
+  color: #c62828;
+  border: 1px solid #ef9a9a;
+}
+
+/* Meta Info Row */
+.doc-meta-info {
+  margin-top: 6px;
+}
+
+.meta-row { 
+  display: flex; 
+  align-items: center; 
+  justify-content: space-between;
+  gap: 12px; 
+  flex-wrap: wrap;
+}
+
+.meta-row span { 
+  font-size: 11px; 
+  color: #777; 
+  display: inline-flex; 
+  align-items: center; 
+  gap: 5px; 
+  white-space: nowrap; 
+}
+
+.time-stamp {
+  color: #888;
 }

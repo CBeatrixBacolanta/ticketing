@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { 
   FaArrowLeft, FaPlus, FaTrash, FaDownload, 
-  FaTimes, FaCheckSquare, FaSquare, FaExclamationCircle, FaSave 
+  FaTimes, FaCheckSquare, FaSquare, FaExclamationCircle, FaSave, FaLock
 } from 'react-icons/fa';
 import html2pdf from 'html2pdf.js';
 import { toast, ToastContainer } from 'react-toastify';
@@ -41,6 +41,9 @@ const MinutesInfo = () => {
     }
   ]);
 
+  // For tracking if this is from archive
+  const [isFromArchive, setIsFromArchive] = useState(false);
+
   // --- Helper function to format party names ---
   const formatParties = (partyData) => {
     if (!partyData) return ["", "", ""];
@@ -50,67 +53,119 @@ const MinutesInfo = () => {
     return names.length >= 3 ? names : [...names, "", "", ""].slice(0, 3);
   };
 
+  // Helper function to convert time to 24-hour format
+  const formatTo24Hour = (timeStr) => {
+    if (!timeStr) return "";
+    const match = timeStr.match(/(\d+):(\d+)\s*(AM|PM)/i);
+    if (!match) {
+      console.log('⚠️ Could not parse time string:', timeStr);
+      return "";
+    }
+    let hours = parseInt(match[1]);
+    const minutes = match[2];
+    const modifier = match[3].toUpperCase();
+    if (modifier === 'PM' && hours !== 12) hours += 12;
+    if (modifier === 'AM' && hours === 12) hours = 0;
+    const formattedTime = `${String(hours).padStart(2, '0')}:${minutes}`;
+    console.log('⏰ Formatted time (24h):', formattedTime);
+    return formattedTime;
+  };
+
   // --- Sync Loading & inheritance Logic ---
   useEffect(() => {
     const allFiles = JSON.parse(localStorage.getItem('allMinutesFiles')) || [];
+    const archivedFiles = JSON.parse(localStorage.getItem('archivedMinutes')) || [];
+    
+    // Check if file is in active minutes
     let currentFile = allFiles.find(f => String(f.id) === String(fileId));
     
+    // If not in active minutes, check archived minutes
+    if (!currentFile) {
+      const archivedFile = archivedFiles.find(f => String(f.id) === String(fileId));
+      if (archivedFile) {
+        currentFile = archivedFile;
+        setIsFromArchive(true);
+      }
+    } else {
+      setIsFromArchive(false);
+    }
+    
     if (currentFile) {
-      // Load existing saved data
+      console.log('📂 Loading existing file - conferences:', currentFile.conferences);
+      // Load existing saved data - MATTER FIELD ALWAYS BLANK
       setCaseData({
         docketNo: currentFile.docketNo || "",
-        matter: currentFile.matter || ""
+        matter: ""  // ALWAYS BLANK - user types their own
       });
       if (currentFile.conferences && currentFile.conferences.length > 0) {
         setConferences(currentFile.conferences);
+        console.log('✅ Conferences loaded:', currentFile.conferences);
       }
-    } else if (location.state?.initialData) {
-      // NEW RECORD: Inherit from Schedule/ViewSched
-      const passedData = location.state.initialData;
-      
-      // Set case matter from the schedule title
+    } else if (fileId === 'new') {
+      // NEW RECORD: ALWAYS keep matter field BLANK
       setCaseData({
         docketNo: "",
-        matter: passedData.title || ""
+        matter: ""  // ALWAYS BLANK for new minutes
       });
 
-      // Get the date from schedule data
-      let scheduleDate = "";
-      if (passedData.year && passedData.monthName && passedData.day) {
-        const monthIndex = new Date(Date.parse(passedData.monthName + " 1, 2000")).getMonth();
-        const dateObj = new Date(passedData.year, monthIndex, parseInt(passedData.day));
-        scheduleDate = dateObj.toISOString().split('T')[0];
+      // Only populate date and time if we have initialData from schedule
+      if (location.state?.initialData) {
+        const passedData = location.state.initialData;
+        
+        console.log('🆕 Creating new minute from schedule data:', passedData);
+        
+        // Get the date from schedule data
+        let scheduleDate = "";
+        if (passedData.year && passedData.monthName && passedData.day) {
+          const monthIndex = new Date(Date.parse(passedData.monthName + " 1, 2000")).getMonth();
+          const dateObj = new Date(passedData.year, monthIndex, parseInt(passedData.day));
+          scheduleDate = dateObj.toISOString().split('T')[0];
+        } else {
+          scheduleDate = new Date().toISOString().split('T')[0];
+        }
+
+        // Get the start time from the schedule
+        let startTime = "";
+        if (passedData.time) {
+          if (passedData.time.includes(' to ')) {
+            startTime = passedData.time.split(' to ')[0];
+          } else {
+            startTime = passedData.time;
+          }
+        }
+        
+        console.log('📅 Schedule date:', scheduleDate);
+        console.log('⏰ Raw schedule start time:', startTime);
+        
+        const formattedTime = formatTo24Hour(startTime);
+        console.log('⏰ Formatted time for minute:', formattedTime);
+        
+        setConferences([{
+          date: scheduleDate,
+          time: formattedTime,
+          requestingParties: formatParties(passedData.requestingParty),
+          respondingParties: formatParties(passedData.respondingParty),
+          concerns: "",
+          status: "Pending",
+          paymentType: "", 
+          amountPaid: "0",
+          totalAmount: ""
+        }]);
       } else {
-        scheduleDate = new Date().toISOString().split('T')[0];
+        // No initialData - just use default empty conferences
+        console.log('🆕 Creating new minute with empty time (no schedule data)');
+        setConferences([{
+          date: "",
+          time: "",
+          requestingParties: ["", "", ""],
+          respondingParties: ["", "", ""],
+          concerns: "",
+          status: "Pending",
+          paymentType: "", 
+          amountPaid: "0",
+          totalAmount: ""
+        }]);
       }
-
-      // Get the start time from the schedule
-      const startTime = passedData.time?.split(' to ')[0] || "";
-
-      // Format the time to 24-hour format
-      const formatTo24Hour = (timeStr) => {
-        if (!timeStr) return "";
-        const match = timeStr.match(/(\d+):(\d+)\s*(AM|PM)/i);
-        if (!match) return "";
-        let hours = parseInt(match[1]);
-        const minutes = match[2];
-        const modifier = match[3].toUpperCase();
-        if (modifier === 'PM' && hours !== 12) hours += 12;
-        if (modifier === 'AM' && hours === 12) hours = 0;
-        return `${String(hours).padStart(2, '0')}:${minutes}`;
-      };
-
-      setConferences([{
-        date: scheduleDate,
-        time: formatTo24Hour(startTime),
-        requestingParties: formatParties(passedData.requestingParty),
-        respondingParties: formatParties(passedData.respondingParty),
-        concerns: "",  // FIXED: Should be blank, not pre-filled
-        status: "Pending",
-        paymentType: "", 
-        amountPaid: "0",
-        totalAmount: ""
-      }]);
     }
   }, [fileId, location.state]);
 
@@ -128,7 +183,6 @@ const MinutesInfo = () => {
 
   // --- Navigation Helpers ---
   const handleBackNavigation = () => {
-    // Check if we came from Activity Log
     if (location.state?.returnToActivityLog) {
       navigate('/schedule');
       return;
@@ -159,8 +213,41 @@ const MinutesInfo = () => {
     navigate(-1);
   };
 
-  // --- Save Logic ---
+  // --- Save Logic - DISABLED for archived documents ---
   const handleSave = () => {
+    // Prevent saving if document is archived
+    if (isFromArchive) {
+      toast.error("Archived documents cannot be edited. Please restore first.");
+      return;
+    }
+    
+    // VALIDATION: Prevent saving if status is Settled/Partial without proper payment terms
+    if (currentConf.status === 'Settled' || currentConf.status === 'Partial') {
+      const originalTotalValue = parseFloat(conferences[0]?.totalAmount) || 0;
+      const currentAmountPaid = parseFloat(currentConf?.amountPaid) || 0;
+      const currentPaymentType = currentConf?.paymentType || '';
+      
+      if (originalTotalValue <= 0) {
+        toast.error("❌ Cannot save: Please set the Total Agreed Amount in Payment Terms first.");
+        return;
+      }
+      
+      if (!currentPaymentType) {
+        toast.error("❌ Cannot save: Please select a Payment Type (Full Payment or Partial Payment) first.");
+        return;
+      }
+      
+      if (currentConf.status === 'Partial' && currentAmountPaid <= 0) {
+        toast.error("❌ Cannot save: For Partial status, please enter a Session Payment amount first.");
+        return;
+      }
+      
+      if (currentConf.status === 'Settled' && currentAmountPaid < originalTotalValue) {
+        toast.error(`❌ Cannot save: For Settled status, the Session Payment (₱${currentAmountPaid}) must equal the Total Agreed Amount (₱${originalTotalValue}).`);
+        return;
+      }
+    }
+    
     const allMinutes = JSON.parse(localStorage.getItem('allMinutesFiles')) || [];
     
     let actualId = fileId;
@@ -180,20 +267,23 @@ const MinutesInfo = () => {
         scheduleToReturn = allSchedules.find(s => s.id === parseInt(linkedScheduleId));
       }
     } else {
+      // Check if existing file is in active or archived
       const existingFile = allMinutes.find(f => String(f.id) === String(fileId));
       if (existingFile && existingFile.linkedScheduleId) {
         linkedScheduleId = existingFile.linkedScheduleId;
-        // Get the full schedule data to return
         const allSchedules = JSON.parse(localStorage.getItem('hearings')) || [];
         scheduleToReturn = allSchedules.find(s => s.id === parseInt(linkedScheduleId));
       }
     }
     
+    console.log('💾 Saving conferences:', conferences);
+    
+    // IMPORTANT: Save the matter field as entered by the user
     const newEntry = {
       id: actualId,
       docketNo: caseData.docketNo,
-      matter: caseData.matter,
-      hearingTitle: caseData.matter,
+      matter: caseData.matter,  // Save what user typed
+      hearingTitle: caseData.matter,  // Also update hearingTitle for display
       officer: location.state?.initialData?.officer || "N/A",
       timestamp: new Date().toISOString(),
       status: currentConf.status || "Pending",
@@ -202,41 +292,84 @@ const MinutesInfo = () => {
       linkedScheduleId: linkedScheduleId
     };
 
-    const index = allMinutes.findIndex(m => String(m.id) === String(actualId));
-    let updatedMinutes;
-
-    if (index !== -1) {
-      updatedMinutes = [...allMinutes];
-      updatedMinutes[index] = newEntry;
+    // Save to active minutes (non-archived)
+    if (fileId === 'new') {
+      // New minute - save to active minutes
+      const updatedMinutes = [newEntry, ...allMinutes];
+      localStorage.setItem('allMinutesFiles', JSON.stringify(updatedMinutes));
+      toast.success("Minutes saved successfully!");
     } else {
-      updatedMinutes = [newEntry, ...allMinutes];
-    }
-
-    localStorage.setItem('allMinutesFiles', JSON.stringify(updatedMinutes));
-    
-    toast.success("Minutes saved successfully!", { 
-      autoClose: 1500,
-      onClose: () => {
-        // Check if we came from Activity Log
-        if (returnToActivityLog) {
-          navigate('/schedule');
-        } else if (scheduleToReturn) {
-          // Navigate back to schedule with the schedule data in state
-          navigate('/schedule', { 
-            state: { returnToSchedule: scheduleToReturn }
-          });
-        } else {
-          navigate(-1);
-        }
+      // Update existing active minute
+      const index = allMinutes.findIndex(m => String(m.id) === String(actualId));
+      let updatedMinutes;
+      if (index !== -1) {
+        updatedMinutes = [...allMinutes];
+        updatedMinutes[index] = newEntry;
+      } else {
+        updatedMinutes = [newEntry, ...allMinutes];
       }
-    });
+      localStorage.setItem('allMinutesFiles', JSON.stringify(updatedMinutes));
+      toast.success("Minutes saved successfully!");
+    }
+    
+    // Dispatch events to notify other components
+    window.dispatchEvent(new Event('minutesUpdated'));
+    window.dispatchEvent(new Event('storage'));
+    
+    // Navigate back
+    setTimeout(() => {
+      if (returnToActivityLog) {
+        navigate('/schedule');
+      } else if (scheduleToReturn) {
+        // Navigate back to schedule with the schedule data in state
+        navigate('/schedule', { 
+          state: { returnToSchedule: scheduleToReturn }
+        });
+      } else {
+        navigate(-1);
+      }
+    }, 1500);
   };
 
   // --- Handlers ---
   const updateConfField = (field, value) => {
+    console.log('🔄 updateConfField - field:', field, 'value:', value, 'currentStep:', currentStep);
+    if (isFromArchive) return; // Prevent editing archived documents
+    
+    // Special validation for status field
+    if (field === 'status') {
+      const originalTotalValue = parseFloat(conferences[0]?.totalAmount) || 0;
+      const currentAmountPaid = parseFloat(currentConf?.amountPaid) || 0;
+      const currentPaymentType = currentConf?.paymentType || '';
+      
+      if (value === 'Settled' || value === 'Partial') {
+        // Validate for Settled or Partial
+        if (originalTotalValue <= 0) {
+          toast.error("Please set the Total Agreed Amount in Payment Terms first.");
+          return;  // Prevents status change
+        }
+        
+        if (!currentPaymentType) {
+          toast.error("Please select a Payment Type (Full Payment or Partial Payment) first.");
+          return;  // Prevents status change
+        }
+        
+        if (value === 'Partial' && currentAmountPaid <= 0) {
+          toast.error("For Partial status, please enter a Session Payment amount first.");
+          return;  // Prevents status change
+        }
+        
+        if (value === 'Settled' && currentAmountPaid < originalTotalValue) {
+          toast.error(`For Settled status, the Session Payment (₱${currentAmountPaid}) must equal the Total Agreed Amount (₱${originalTotalValue}).`);
+          return;  // Prevents status change
+        }
+      }
+    }
+    
     setConferences(prev => {
       const updated = [...prev];
       updated[currentStep - 1] = { ...updated[currentStep - 1], [field]: value };
+      console.log('📝 Updated conference:', updated[currentStep - 1]);
       if (field === 'totalAmount' && currentStep === 1) {
         for (let i = 1; i < updated.length; i++) {
           updated[i].totalAmount = value;
@@ -248,6 +381,7 @@ const MinutesInfo = () => {
   };
 
   const updateParty = (type, index, val) => {
+    if (isFromArchive) return; // Prevent editing archived documents
     setConferences(prev => {
       const updated = [...prev];
       const targetConf = { ...updated[currentStep - 1] };
@@ -260,6 +394,7 @@ const MinutesInfo = () => {
   };
 
   const addPartyRow = (type) => {
+    if (isFromArchive) return; // Prevent editing archived documents
     setConferences(prev => {
       const updated = [...prev];
       const targetConf = { ...updated[currentStep - 1] };
@@ -270,6 +405,7 @@ const MinutesInfo = () => {
   };
 
   const deletePartyRow = (type, index) => {
+    if (isFromArchive) return; // Prevent editing archived documents
     setConferences(prev => {
       const updated = [...prev];
       const targetConf = { ...updated[currentStep - 1] };
@@ -286,6 +422,7 @@ const MinutesInfo = () => {
   };
 
   const handlePaymentTypeChange = (type) => {
+    if (isFromArchive) return; // Prevent editing archived documents
     const newVal = currentConf.paymentType === type ? "" : type;
     updateConfField('paymentType', newVal);
     if (newVal === 'Full Payment' && currentConf.totalAmount) {
@@ -294,6 +431,10 @@ const MinutesInfo = () => {
   };
 
   const handleSavePaymentTerms = () => {
+    if (isFromArchive) {
+      toast.error("Archived documents cannot be edited. Please restore first.");
+      return;
+    }
     const paid = parseFloat(currentConf.amountPaid) || 0;
     if (!currentConf.paymentType) return setPaymentError("Select a payment type.");
     if (parseFloat(currentConf.totalAmount) <= 0) return setPaymentError("Please enter a valid total amount.");
@@ -305,6 +446,10 @@ const MinutesInfo = () => {
   };
 
   const handleDeleteSession = () => {
+    if (isFromArchive) {
+      toast.error("Archived documents cannot be edited. Please restore first.");
+      return;
+    }
     if (conferences.length <= 1) {
       toast.error("Cannot delete the only remaining session.");
       return;
@@ -349,6 +494,10 @@ const MinutesInfo = () => {
       <ConfirmationModal 
         isOpen={isModalOpen}
         onConfirm={() => {
+          if (isFromArchive) {
+            toast.error("Archived documents cannot be edited. Please restore first.");
+            return;
+          }
           const lastConf = conferences[conferences.length - 1];
           setConferences([...conferences, { 
             date: "", time: "", 
@@ -450,12 +599,24 @@ const MinutesInfo = () => {
                 <button 
                     className="btn-new-conf" 
                     onClick={() => setIsModalOpen(true)}
-                    disabled={isFullyPaid}
-                    style={{ opacity: isFullyPaid ? 0.5 : 1, cursor: isFullyPaid ? 'not-allowed' : 'pointer' }}
+                    disabled={isFullyPaid || isFromArchive}
+                    style={{ opacity: (isFullyPaid || isFromArchive) ? 0.5 : 1, cursor: (isFullyPaid || isFromArchive) ? 'not-allowed' : 'pointer' }}
                 >
                     <FaPlus /> New Session
                 </button>
-                <button className="btn-delete-row" style={{ background: '#fee2e2', color: '#b91c1c' }} onClick={handleDeleteSession}><FaTrash /></button>
+                <button 
+                  className="btn-delete-row" 
+                  style={{ background: '#fee2e2', color: '#b91c1c', opacity: isFromArchive ? 0.5 : 1, cursor: isFromArchive ? 'not-allowed' : 'pointer' }}
+                  onClick={handleDeleteSession}
+                  disabled={isFromArchive}
+                >
+                  <FaTrash />
+                </button>
+              </div>
+            )}
+            {isFromArchive && (
+              <div className="archived-badge-readonly">
+                <FaLock /> Read Only - Archived Document
               </div>
             )}
           </div>
@@ -471,21 +632,51 @@ const MinutesInfo = () => {
         <div className="top-fields">
           <div className="field-group">
             <label>DOCKET NO:</label>
-            <input type="text" value={caseData.docketNo} onChange={(e) => setCaseData({...caseData, docketNo: e.target.value})} style={pdfInputStyle} placeholder="e.g., SENA-2024-001" />
+            <input 
+              type="text" 
+              value={caseData.docketNo} 
+              onChange={(e) => setCaseData({...caseData, docketNo: e.target.value})} 
+              style={pdfInputStyle} 
+              placeholder="e.g., SENA-2024-001" 
+              disabled={isFromArchive}
+              className={isFromArchive ? 'readonly-input' : ''}
+            />
           </div>
           <div className="field-group">
             <label>DATE:</label>
-            <input type={isGeneratingPdf ? "text" : "date"} value={currentConf?.date} onChange={(e) => updateConfField('date', e.target.value)} style={pdfInputStyle} />
+            <input 
+              type={isGeneratingPdf ? "text" : "date"} 
+              value={currentConf?.date} 
+              onChange={(e) => updateConfField('date', e.target.value)} 
+              style={pdfInputStyle}
+              disabled={isFromArchive}
+              className={isFromArchive ? 'readonly-input' : ''}
+            />
           </div>
           <div className="field-group">
             <label>TIME:</label>
-            <input type={isGeneratingPdf ? "text" : "time"} value={currentConf?.time} onChange={(e) => updateConfField('time', e.target.value)} style={pdfInputStyle} />
+            <input 
+              type={isGeneratingPdf ? "text" : "time"} 
+              value={currentConf?.time} 
+              onChange={(e) => updateConfField('time', e.target.value)} 
+              style={pdfInputStyle}
+              disabled={isFromArchive}
+              className={isFromArchive ? 'readonly-input' : ''}
+            />
           </div>
         </div>
 
         <div className="full-field">
           <label>IN THE MATTER OF REQUEST FOR ASSISTANCE BETWEEN:</label>
-          <input type="text" value={caseData.matter} onChange={(e) => setCaseData({...caseData, matter: e.target.value})} style={pdfInputStyle} placeholder="Enter case matter" />
+          <input 
+            type="text" 
+            value={caseData.matter} 
+            onChange={(e) => setCaseData({...caseData, matter: e.target.value})} 
+            style={pdfInputStyle} 
+            placeholder="Enter case matter"
+            disabled={isFromArchive}
+            className={isFromArchive ? 'readonly-input' : ''}
+          />
         </div>
 
         <div className="appearance-section">
@@ -496,22 +687,38 @@ const MinutesInfo = () => {
               {currentConf?.requestingParties?.map((name, i) => (
                 <div key={i} className="input-row">
                   <span className="row-num">{i + 1}.</span>
-                  <input type="text" value={name} onChange={(e) => updateParty('requestingParties', i, e.target.value)} style={pdfInputStyle} placeholder="Full name" />
-                  {!isGeneratingPdf && <button className="btn-delete-row" onClick={() => deletePartyRow('requestingParties', i)}><FaTrash size={12} /></button>}
+                  <input 
+                    type="text" 
+                    value={name} 
+                    onChange={(e) => updateParty('requestingParties', i, e.target.value)} 
+                    style={pdfInputStyle} 
+                    placeholder="Full name"
+                    disabled={isFromArchive}
+                    className={isFromArchive ? 'readonly-input' : ''}
+                  />
+                  {!isGeneratingPdf && !isFromArchive && <button className="btn-delete-row" onClick={() => deletePartyRow('requestingParties', i)}><FaTrash size={12} /></button>}
                 </div>
               ))}
-              {!isGeneratingPdf && <button className="add-name-btn" onClick={() => addPartyRow('requestingParties')}><FaPlus /> Add Name</button>}
+              {!isGeneratingPdf && !isFromArchive && <button className="add-name-btn" onClick={() => addPartyRow('requestingParties')}><FaPlus /> Add Name</button>}
             </div>
             <div className="column">
               <h4>RESPONDING PARTY</h4>
               {currentConf?.respondingParties?.map((name, i) => (
                 <div key={i} className="input-row">
                   <span className="row-num">{i + 1}.</span>
-                  <input type="text" value={name} onChange={(e) => updateParty('respondingParties', i, e.target.value)} style={pdfInputStyle} placeholder="Full name" />
-                  {!isGeneratingPdf && <button className="btn-delete-row" onClick={() => deletePartyRow('respondingParties', i)}><FaTrash size={12} /></button>}
+                  <input 
+                    type="text" 
+                    value={name} 
+                    onChange={(e) => updateParty('respondingParties', i, e.target.value)} 
+                    style={pdfInputStyle} 
+                    placeholder="Full name"
+                    disabled={isFromArchive}
+                    className={isFromArchive ? 'readonly-input' : ''}
+                  />
+                  {!isGeneratingPdf && !isFromArchive && <button className="btn-delete-row" onClick={() => deletePartyRow('respondingParties', i)}><FaTrash size={12} /></button>}
                 </div>
               ))}
-              {!isGeneratingPdf && <button className="add-name-btn" onClick={() => addPartyRow('respondingParties')}><FaPlus /> Add Name</button>}
+              {!isGeneratingPdf && !isFromArchive && <button className="add-name-btn" onClick={() => addPartyRow('respondingParties')}><FaPlus /> Add Name</button>}
             </div>
           </div>
         </div>
@@ -519,7 +726,7 @@ const MinutesInfo = () => {
         <div className="minutes-section">
           <div className="section-title-row">
             <h3>MINUTES OF CONFERENCE (SESSION {currentStep})</h3>
-            {!isGeneratingPdf && <button className="btn-payment" onClick={() => setIsPaymentModalOpen(true)}>Payment Terms</button>}
+            {!isGeneratingPdf && !isFromArchive && <button className="btn-payment" onClick={() => setIsPaymentModalOpen(true)}>Payment Terms</button>}
           </div>
           {!isGeneratingPdf ? (
             <textarea 
@@ -527,6 +734,8 @@ const MinutesInfo = () => {
               value={currentConf?.concerns} 
               onChange={(e) => updateConfField('concerns', e.target.value)} 
               rows="6"
+              disabled={isFromArchive}
+              className={isFromArchive ? 'readonly-textarea' : ''}
             />
           ) : (
             <div className="pdf-dynamic-text">{currentConf?.concerns || "No concerns recorded."}</div>
@@ -537,7 +746,13 @@ const MinutesInfo = () => {
               <div className="status-payment-stack" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 <div className="status-select-row" style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
                   <label style={{ fontWeight: 'bold', fontSize: '0.9rem' }}>Status:</label>
-                  <select value={currentConf?.status} onChange={(e) => updateConfField('status', e.target.value)} style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1' }}>
+                  <select 
+                    value={currentConf?.status} 
+                    onChange={(e) => updateConfField('status', e.target.value)} 
+                    style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #cbd5e1' }}
+                    disabled={isFromArchive}
+                    className={isFromArchive ? 'readonly-select' : ''}
+                  >
                     <option value="">Select</option>
                     <option value="Settled">Settled</option>
                     <option value="Partial">Settled (Partial)</option>
@@ -561,9 +776,11 @@ const MinutesInfo = () => {
                 <button className="btn-preview" onClick={handlePreviewPDF} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', background: '#4f46e5', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
                   <FaDownload /> Preview & Download
                 </button>
-                <button className="btn-submit" onClick={handleSave} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', background: '#10b981', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
-                  <FaSave /> SAVE
-                </button>
+                {!isFromArchive && (
+                  <button className="btn-submit" onClick={handleSave} style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', background: '#10b981', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer' }}>
+                    <FaSave /> SAVE
+                  </button>
+                )}
               </div>
             </div>
           )}

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import '../styles/Dashboard.css';
 import { FaTimes, FaDownload } from 'react-icons/fa';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LabelList, LineChart, Line } from 'recharts';
+import { XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, LineChart, Line } from 'recharts';
 
 const Dashboard = ({ user, notifications, onMarkAsRead, onClearAll }) => {
   const navigate = useNavigate();
@@ -289,15 +289,6 @@ const Dashboard = ({ user, notifications, onMarkAsRead, onClearAll }) => {
     return () => window.removeEventListener('storage', processGraphData);
   }, [selectedMonth, selectedYear]);
 
-  const renderCustomLabel = ({ x, y, width, value }) => {
-    if (value === 0) return null;
-    return (
-      <text x={x + width / 2} y={y - 10} fill="#666" textAnchor="middle" fontSize="12" fontWeight="bold">
-        {value}
-      </text>
-    );
-  };
-
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
   // --- EXPORT EARNINGS DATA AS CSV ---
@@ -453,6 +444,11 @@ const Dashboard = ({ user, notifications, onMarkAsRead, onClearAll }) => {
     }
   };
 
+  // Get total sessions for the selected month
+  const getTotalSessions = () => {
+    return reportData.reduce((sum, day) => sum + day.clients, 0);
+  };
+
   return (
     <div className="dashboard-container">
       {showPanel && <div className="overlay" onClick={() => setShowPanel(false)} />}
@@ -517,22 +513,29 @@ const Dashboard = ({ user, notifications, onMarkAsRead, onClearAll }) => {
           </div>
         </section>
 
+        {/* --- REDESIGNED DAILY REPORT GRAPH SECTION (LINE CHART LIKE EARNINGS OVERVIEW) --- */}
         <section className="daily-report-section">
-          <div className="reports-header-container">
+          <div className="earnings-header-with-actions">
             <h2 className="reports-title">Daily Report Graph</h2>
             <div className="reports-filters">
-              <select className="month-dropdown" value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)}>
-                {monthNames.map(m => <option key={m} value={m}>{m}</option>)}
-              </select>
-              <select className="month-dropdown" value={selectedYear} onChange={(e) => setSelectedYear(parseInt(e.target.value))}>
-                {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
-              </select>
+              <div className="select-group">
+                <label>Month:</label>
+                <select className="period-dropdown" value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)}>
+                  {monthNames.map(m => <option key={m} value={m}>{m}</option>)}
+                </select>
+              </div>
+              <div className="select-group">
+                <label>Year:</label>
+                <select className="period-dropdown" value={selectedYear} onChange={(e) => setSelectedYear(parseInt(e.target.value))}>
+                  {[2024, 2025, 2026, 2027].map(y => <option key={y} value={y}>{y}</option>)}
+                </select>
+              </div>
             </div>
           </div>
 
-          <div className="reports-main-card shadow-glow">
-            <div className="reports-grid-layout">
-              <div className="officer-summary">
+          <div className="daily-report-main-card shadow-glow">
+            <div className="daily-report-layout">
+              <div className="officer-summary-daily">
                 <div className="officer-avatar-wrapper">
                   {user?.profilePic ? <img src={user.profilePic} alt="PFP" /> : <div className="avatar-placeholder">?</div>}
                 </div>
@@ -540,18 +543,62 @@ const Dashboard = ({ user, notifications, onMarkAsRead, onClearAll }) => {
                 <p className="officer-role">SR. LEO</p>
               </div>
 
-              <div className="graph-section-wrapper">
-                <ResponsiveContainer width="100%" height={350}>
-                  <BarChart data={reportData} margin={{ top: 20, right: 10, left: 0, bottom: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                    <XAxis dataKey="day" tick={{ fontSize: 10 }} />
-                    <YAxis allowDecimals={false} width={30} />
-                    <Tooltip />
-                    <Bar dataKey="clients" fill="#030a49" radius={[10, 10, 0, 0]} barSize={15}>
-                      <LabelList dataKey="clients" content={renderCustomLabel} />
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
+              <div className="daily-graph-wrapper">
+                <div className="daily-total-display">
+                  <span className="total-label">
+                    Total Sessions Completed:
+                  </span>
+                  <span className="total-amount">
+                    {getTotalSessions()} sessions
+                  </span>
+                </div>
+                
+                <div className="graph-container">
+                  <ResponsiveContainer width="100%" height={320}>
+                    <LineChart 
+                      data={reportData} 
+                      margin={{ top: 20, right: 30, left: 20, bottom: 10 }}
+                    >
+                      <CartesianGrid strokeDasharray="0" vertical={false} stroke="#f0f0f0" />
+                      <XAxis 
+                        dataKey="day" 
+                        tick={{ fontSize: 11, fill: '#666' }} 
+                        axisLine={{ stroke: '#e0e0e0' }}
+                        tickLine={false}
+                        interval={Math.floor(31 / 8)}
+                      />
+                      <YAxis 
+                        tick={{ fontSize: 11, fill: '#003399' }} 
+                        axisLine={false}
+                        tickLine={false}
+                        allowDecimals={false}
+                        width={35}
+                      />
+                      <Tooltip 
+                        contentStyle={{ 
+                          borderRadius: '10px', 
+                          border: '1px solid #e0e0e0', 
+                          boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                          backgroundColor: '#fff'
+                        }}
+                        formatter={(value) => [`${value} sessions`, 'Completed']}
+                        labelFormatter={(label) => `Day ${label}`}
+                      />
+                      <Line 
+                        type="monotone" 
+                        dataKey="clients" 
+                        stroke="#003399" 
+                        strokeWidth={3} 
+                        dot={{ r: 5, fill: '#ffffff', strokeWidth: 2, stroke: '#003399' }}
+                        activeDot={{ r: 7, fill: '#003399', stroke: '#fff', strokeWidth: 2 }}
+                      />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+                
+                <div className="daily-graph-footer">
+                  <span>📈 Daily session completions for {selectedMonth} {selectedYear}</span>
+                </div>
               </div>
             </div>
           </div>
@@ -697,14 +744,7 @@ const Dashboard = ({ user, notifications, onMarkAsRead, onClearAll }) => {
               </ResponsiveContainer>
             </div>
 
-            <div style={{
-              marginTop: '15px',
-              padding: '10px',
-              fontSize: '0.75rem',
-              color: '#888',
-              textAlign: 'center',
-              borderTop: '1px solid #eee'
-            }}>
+            <div className="graph-footer">
               {earningsFrequency === 'Daily' && `📅 Showing daily earnings for each day in ${monthNames[earningsViewMonth]} ${earningsViewYear}`}
               {earningsFrequency === 'Weekly' && `📊 Showing weekly earnings breakdown for ${monthNames[earningsViewMonth]} ${earningsViewYear}`}
               {earningsFrequency === 'Monthly' && `📈 Showing total earnings for each month in ${earningsViewYear}`}
